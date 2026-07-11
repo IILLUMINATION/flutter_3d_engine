@@ -1,15 +1,86 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use wgpu::util::DeviceExt;
+
 use crate::core::math::Transform;
 use crate::core::present::FrameSink;
+use crate::core::scene::Scene3D;
 
 const SHADER_SOURCE: &str = include_str!("../shader.wgsl");
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct Vertex {
+    position: [f32; 3],
+    normal: [f32; 3],
+}
+
+const CUBE_VERTICES: [Vertex; 36] = [
+    Vertex { position: [-0.5, -0.5,  0.5], normal: [ 0.0,  0.0,  1.0] },
+    Vertex { position: [ 0.5, -0.5,  0.5], normal: [ 0.0,  0.0,  1.0] },
+    Vertex { position: [ 0.5,  0.5,  0.5], normal: [ 0.0,  0.0,  1.0] },
+    Vertex { position: [-0.5, -0.5,  0.5], normal: [ 0.0,  0.0,  1.0] },
+    Vertex { position: [ 0.5,  0.5,  0.5], normal: [ 0.0,  0.0,  1.0] },
+    Vertex { position: [-0.5,  0.5,  0.5], normal: [ 0.0,  0.0,  1.0] },
+
+    Vertex { position: [ 0.5, -0.5, -0.5], normal: [ 0.0,  0.0, -1.0] },
+    Vertex { position: [-0.5, -0.5, -0.5], normal: [ 0.0,  0.0, -1.0] },
+    Vertex { position: [-0.5,  0.5, -0.5], normal: [ 0.0,  0.0, -1.0] },
+    Vertex { position: [ 0.5, -0.5, -0.5], normal: [ 0.0,  0.0, -1.0] },
+    Vertex { position: [-0.5,  0.5, -0.5], normal: [ 0.0,  0.0, -1.0] },
+    Vertex { position: [ 0.5,  0.5, -0.5], normal: [ 0.0,  0.0, -1.0] },
+
+    Vertex { position: [ 0.5, -0.5,  0.5], normal: [ 1.0,  0.0,  0.0] },
+    Vertex { position: [ 0.5, -0.5, -0.5], normal: [ 1.0,  0.0,  0.0] },
+    Vertex { position: [ 0.5,  0.5, -0.5], normal: [ 1.0,  0.0,  0.0] },
+    Vertex { position: [ 0.5, -0.5,  0.5], normal: [ 1.0,  0.0,  0.0] },
+    Vertex { position: [ 0.5,  0.5, -0.5], normal: [ 1.0,  0.0,  0.0] },
+    Vertex { position: [ 0.5,  0.5,  0.5], normal: [ 1.0,  0.0,  0.0] },
+
+    Vertex { position: [-0.5, -0.5, -0.5], normal: [-1.0,  0.0,  0.0] },
+    Vertex { position: [-0.5, -0.5,  0.5], normal: [-1.0,  0.0,  0.0] },
+    Vertex { position: [-0.5,  0.5,  0.5], normal: [-1.0,  0.0,  0.0] },
+    Vertex { position: [-0.5, -0.5, -0.5], normal: [-1.0,  0.0,  0.0] },
+    Vertex { position: [-0.5,  0.5,  0.5], normal: [-1.0,  0.0,  0.0] },
+    Vertex { position: [-0.5,  0.5, -0.5], normal: [-1.0,  0.0,  0.0] },
+
+    Vertex { position: [-0.5,  0.5,  0.5], normal: [ 0.0,  1.0,  0.0] },
+    Vertex { position: [ 0.5,  0.5,  0.5], normal: [ 0.0,  1.0,  0.0] },
+    Vertex { position: [ 0.5,  0.5, -0.5], normal: [ 0.0,  1.0,  0.0] },
+    Vertex { position: [-0.5,  0.5,  0.5], normal: [ 0.0,  1.0,  0.0] },
+    Vertex { position: [ 0.5,  0.5, -0.5], normal: [ 0.0,  1.0,  0.0] },
+    Vertex { position: [-0.5,  0.5, -0.5], normal: [ 0.0,  1.0,  0.0] },
+
+    Vertex { position: [-0.5, -0.5, -0.5], normal: [ 0.0, -1.0,  0.0] },
+    Vertex { position: [ 0.5, -0.5, -0.5], normal: [ 0.0, -1.0,  0.0] },
+    Vertex { position: [ 0.5, -0.5,  0.5], normal: [ 0.0, -1.0,  0.0] },
+    Vertex { position: [-0.5, -0.5, -0.5], normal: [ 0.0, -1.0,  0.0] },
+    Vertex { position: [ 0.5, -0.5,  0.5], normal: [ 0.0, -1.0,  0.0] },
+    Vertex { position: [-0.5, -0.5,  0.5], normal: [ 0.0, -1.0,  0.0] },
+];
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct CameraUniform {
+    pub view_proj: [[f32; 4]; 4],
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct ModelUniform {
+    model: [[f32; 4]; 4],
+}
 
 #[derive(Debug)]
 pub struct GpuRenderer<S: FrameSink = crate::core::present::CpuBufferSink> {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     render_pipeline: wgpu::RenderPipeline,
+    vertex_buffer: wgpu::Buffer,
+    num_vertices: u32,
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
+    model_bind_group_layout: wgpu::BindGroupLayout,
     render_texture: wgpu::Texture,
     render_texture_view: wgpu::TextureView,
     sink: S,
@@ -55,14 +126,57 @@ impl<S: FrameSink> GpuRenderer<S> {
             source: wgpu::ShaderSource::Wgsl(SHADER_SOURCE.into()),
         });
 
+        let camera_bg_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("camera bgl"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: std::num::NonZeroU64::new(64),
+                    },
+                    count: None,
+                }],
+            });
+
+        let model_bg_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("model bgl"),
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: std::num::NonZeroU64::new(64),
+                    },
+                    count: None,
+                }],
+            });
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("pipeline layout"),
+            bind_group_layouts: &[Some(&camera_bg_layout), Some(&model_bg_layout)],
+            immediate_size: 0,
+        });
+
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("pipeline"),
-            layout: None,
+            layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[],
+                buffers: &[Some(wgpu::VertexBufferLayout {
+                    array_stride: std::mem::size_of::<Vertex>() as u64,
+                    step_mode: wgpu::VertexStepMode::Vertex,
+                    attributes: &wgpu::vertex_attr_array![
+                        0 => Float32x3,  // position
+                        1 => Float32x3   // normal
+                    ],
+                })],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -89,13 +203,32 @@ impl<S: FrameSink> GpuRenderer<S> {
             cache: None,
         });
 
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("cube vertices"),
+            contents: bytemuck::cast_slice(&CUBE_VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let num_vertices = CUBE_VERTICES.len() as u32;
+
+        let camera_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("camera uniform"),
+            size: 64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("camera bg"),
+            layout: &camera_bg_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+        });
+
         let render_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("render target"),
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
+            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -111,6 +244,11 @@ impl<S: FrameSink> GpuRenderer<S> {
             device,
             queue,
             render_pipeline,
+            vertex_buffer,
+            num_vertices,
+            camera_buffer,
+            camera_bind_group,
+            model_bind_group_layout: model_bg_layout,
             render_texture,
             render_texture_view,
             sink,
@@ -120,11 +258,7 @@ impl<S: FrameSink> GpuRenderer<S> {
     fn resize(&mut self, width: u32, height: u32) {
         self.render_texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("render target"),
-            size: wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
+            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -137,8 +271,8 @@ impl<S: FrameSink> GpuRenderer<S> {
 
     pub fn render_frame(
         &mut self,
-        _view_proj: &[[f32; 4]; 4],
-        _node_transforms: &[Transform],
+        view_proj: &glam::Mat4,
+        node_transforms: &[Transform],
         width: u32,
         height: u32,
     ) -> Vec<u8> {
@@ -152,6 +286,14 @@ impl<S: FrameSink> GpuRenderer<S> {
             self.resize(width, height);
         }
 
+        self.queue.write_buffer(
+            &self.camera_buffer,
+            0,
+            bytemuck::bytes_of(&CameraUniform {
+                view_proj: view_proj.to_cols_array_2d(),
+            }),
+        );
+
         let mut encoder = self.device.create_command_encoder(&Default::default());
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -162,10 +304,7 @@ impl<S: FrameSink> GpuRenderer<S> {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.12,
-                            g: 0.12,
-                            b: 0.16,
-                            a: 1.0,
+                            r: 0.12, g: 0.12, b: 0.16, a: 1.0,
                         }),
                         store: wgpu::StoreOp::Store,
                     },
@@ -175,8 +314,31 @@ impl<S: FrameSink> GpuRenderer<S> {
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
+
             rpass.set_pipeline(&self.render_pipeline);
-            rpass.draw(0..3, 0..1);
+            rpass.set_bind_group(0, &self.camera_bind_group, &[]);
+            rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+
+            for transform in node_transforms {
+                let model = build_model_matrix(transform);
+                let model_buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("model uniform"),
+                    contents: bytemuck::bytes_of(&ModelUniform {
+                        model: model.to_cols_array_2d(),
+                    }),
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                });
+                let model_bg = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: Some("model bg"),
+                    layout: &self.model_bind_group_layout,
+                    entries: &[wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: model_buf.as_entire_binding(),
+                    }],
+                });
+                rpass.set_bind_group(1, &model_bg, &[]);
+                rpass.draw(0..self.num_vertices, 0..1);
+            }
         }
         self.queue.submit(Some(encoder.finish()));
 
@@ -186,64 +348,35 @@ impl<S: FrameSink> GpuRenderer<S> {
 }
 
 pub fn build_view_projection_for_scene(
-    scene: &crate::core::scene::Scene3D,
+    scene: &Scene3D,
     width: u32,
     height: u32,
-) -> [[f32; 4]; 4] {
-    let cam = &scene.camera;
-    let aspect = width as f32 / height as f32;
-    let proj = build_perspective_matrix(cam.fov, aspect, 0.1, 100.0);
-    let view = build_view_matrix(&cam.position, &cam.target, &crate::core::math::Vector3::UP);
-    multiply_mat4(&proj, &view)
-}
-
-fn build_perspective_matrix(fov: f32, aspect: f32, near: f32, far: f32) -> [[f32; 4]; 4] {
-    let f = 1.0 / (fov / 2.0).tan();
-    let range_inv = 1.0 / (near - far);
-    [
-        [f / aspect, 0.0, 0.0, 0.0],
-        [0.0, f, 0.0, 0.0],
-        [0.0, 0.0, (far + near) * range_inv, far * near * range_inv * 2.0],
-        [0.0, 0.0, -1.0, 0.0],
-    ]
-}
-
-fn build_view_matrix(
-    eye: &crate::core::math::Vector3,
-    target: &crate::core::math::Vector3,
-    up: &crate::core::math::Vector3,
-) -> [[f32; 4]; 4] {
-    let f = (*target - *eye).normalize_or_zero();
-    let s = {
-        let cr = crate::core::math::Vector3::new(
-            f.y * up.z - f.z * up.y,
-            f.z * up.x - f.x * up.z,
-            f.x * up.y - f.y * up.x,
-        );
-        cr.normalize_or_zero()
-    };
-    let u = crate::core::math::Vector3::new(
-        s.y * f.z - s.z * f.y,
-        s.z * f.x - s.x * f.z,
-        s.x * f.y - s.y * f.x,
+) -> glam::Mat4 {
+    let eye = glam::Vec3::new(
+        scene.camera.position.x,
+        scene.camera.position.y,
+        scene.camera.position.z,
     );
-    [
-        [s.x, u.x, -f.x, 0.0],
-        [s.y, u.y, -f.y, 0.0],
-        [s.z, u.z, -f.z, 0.0],
-        [-s.dot(eye), -u.dot(eye), f.dot(eye), 1.0],
-    ]
+    let target = glam::Vec3::new(
+        scene.camera.target.x,
+        scene.camera.target.y,
+        scene.camera.target.z,
+    );
+    let up = glam::Vec3::Y;
+    let view = glam::Mat4::look_at_rh(eye, target, up);
+    let aspect = width as f32 / height as f32;
+    let proj = glam::Mat4::perspective_rh(scene.camera.fov, aspect, 0.1, 100.0);
+    proj * view
 }
 
-fn multiply_mat4(a: &[[f32; 4]; 4], b: &[[f32; 4]; 4]) -> [[f32; 4]; 4] {
-    let mut out = [[0.0; 4]; 4];
-    for row in 0..4 {
-        for col in 0..4 {
-            out[row][col] = a[row][0] * b[0][col]
-                + a[row][1] * b[1][col]
-                + a[row][2] * b[2][col]
-                + a[row][3] * b[3][col];
-        }
-    }
-    out
+fn build_model_matrix(t: &Transform) -> glam::Mat4 {
+    let translation = glam::Vec3::new(t.position.x, t.position.y, t.position.z);
+    let scale = glam::Vec3::new(t.scale.x, t.scale.y, t.scale.z);
+    let rotation = glam::Quat::from_euler(
+        glam::EulerRot::XYZ,
+        t.rotation.x,
+        t.rotation.y,
+        t.rotation.z,
+    );
+    glam::Mat4::from_scale_rotation_translation(scale, rotation, translation)
 }

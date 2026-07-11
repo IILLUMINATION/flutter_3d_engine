@@ -129,7 +129,7 @@ class _FramePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final src = Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
     final dst = Rect.fromLTWH(0, 0, size.width, size.height);
-    final paint = Paint()..filterQuality = FilterQuality.none;
+    final paint = Paint()..filterQuality = FilterQuality.low;
     canvas.drawImageRect(image, src, dst, paint);
   }
 
