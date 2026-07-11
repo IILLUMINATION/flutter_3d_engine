@@ -30,13 +30,11 @@ class DemoScreen extends StatefulWidget {
 
 class _DemoScreenState extends State<DemoScreen> {
   Rust3DController? _controller;
-  BigInt? _cubeId;
-  double _rotationY = 0;
+  final List<BigInt> _cubeIds = [];
 
   double _theta = 0.0;
   double _phi = 0.2;
   double _radius = 5.0;
-  bool _autoRotate = true;
 
   static const double _panSensitivity = 0.007;
   static const double _zoomStep = 0.005;
@@ -55,26 +53,28 @@ class _DemoScreenState extends State<DemoScreen> {
   void _onCreated(Rust3DController controller) {
     _controller = controller;
     _updateCameraPosition();
-    controller.addCube(x: 0, y: 0, z: 0, r: 1.0, g: 0.4, b: 0.2).then((id) {
-      setState(() => _cubeId = id);
+  }
+
+  // physics step + render — driven by Ticker in Rust3DCanvas
+  void _onTick(Rust3DController controller, double elapsedSec, double deltaSec) {
+    controller.physicsStep(deltaSec.clamp(0.0, 0.05));
+  }
+
+  void _spawnCube() {
+    final rng = math.Random();
+    final x = (rng.nextDouble() - 0.5) * 2.0;
+    final z = (rng.nextDouble() - 0.5) * 2.0;
+    _controller?.addCube(x: x, y: 4.0, z: z, r: rng.nextDouble(), g: rng.nextDouble(), b: rng.nextDouble()).then((id) {
+      setState(() => _cubeIds.add(id));
     });
   }
 
-  void _onTick(Rust3DController controller, double elapsedSec, double deltaSec) {
-    if (_autoRotate) {
-      _rotationY += deltaSec * 1.0;
-      controller.setNodeTransform(nodeId: _cubeId!, ry: _rotationY);
-    }
-  }
-
-  void _onPanStart(DragStartDetails d) {
-    setState(() => _autoRotate = false);
-  }
+  void _onPanStart(DragStartDetails d) {}
 
   void _onPanUpdate(DragUpdateDetails d) {
     _theta -= d.delta.dx * _panSensitivity;
-    _phi += d.delta.dy * _panSensitivity;
-    _phi = _phi.clamp(_phiMin, _phiMax);
+    _phi   += d.delta.dy * _panSensitivity;
+    _phi    = _phi.clamp(_phiMin, _phiMax);
     _updateCameraPosition();
     setState(() {});
   }
@@ -82,7 +82,7 @@ class _DemoScreenState extends State<DemoScreen> {
   void _onPointerSignal(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
       _radius -= event.scrollDelta.dy * _zoomStep;
-      _radius = _radius.clamp(_minRadius, _maxRadius);
+      _radius  = _radius.clamp(_minRadius, _maxRadius);
       _updateCameraPosition();
       setState(() {});
     }
@@ -113,34 +113,24 @@ class _DemoScreenState extends State<DemoScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(
-                            _autoRotate ? Icons.pause : Icons.play_arrow,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                          onPressed: () =>
-                              setState(() => _autoRotate = !_autoRotate),
-                          tooltip: _autoRotate
-                              ? 'Stop rotation'
-                              : 'Start rotation',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _autoRotate ? 'Auto' : 'Manual',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
+                    ElevatedButton.icon(
+                      onPressed: _spawnCube,
+                      icon: const Icon(Icons.add_box, size: 18),
+                      label: const Text('Spawn Cube'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepOrange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Cubes: ${_cubeIds.length}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                     const SizedBox(height: 4),
                     Text(

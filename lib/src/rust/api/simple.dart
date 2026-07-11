@@ -81,6 +81,9 @@ Future<void> updateCamera({
   tz: tz,
 );
 
+Future<void> physicsStep({required Scene3D scene, required double dt}) =>
+    RustLib.instance.api.crateApiSimplePhysicsStep(scene: scene, dt: dt);
+
 Future<void> setCameraPosition({
   required Scene3D scene,
   required double x,

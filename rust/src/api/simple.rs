@@ -33,13 +33,8 @@ pub fn add_cube(
     g: f32,
     b: f32,
 ) -> u64 {
-    let transform = crate::core::math::Transform {
-        position: Vector3::new(x, y, z),
-        rotation: Vector3::ZERO,
-        scale:    Vector3::ONE,
-    };
     let _color = r * r + g * g + b * b;
-    scene.add_node(transform, Some(100u64))
+    scene.add_cube_physics(x, y, z)
 }
 
 pub fn update_node_transform(
@@ -68,6 +63,10 @@ pub fn update_camera(
     tz: f32,
 ) {
     scene.update_camera(px, py, pz, tx, ty, tz);
+}
+
+pub fn physics_step(scene: &mut Scene3D, dt: f32) {
+    scene.physics_step(dt);
 }
 
 pub fn set_camera_position(scene: &mut Scene3D, x: f32, y: f32, z: f32) {

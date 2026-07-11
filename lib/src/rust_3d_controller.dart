@@ -74,5 +74,7 @@ class Rust3DController {
     );
   }
 
+  Future<void> physicsStep(double dt) => ffi.physicsStep(scene: _scene, dt: dt);
+
   Future<void> setFov(double fov) => ffi.setCameraFov(scene: _scene, fov: fov);
 }
