@@ -61,8 +61,27 @@ const CUBE_VERTICES: [Vertex; 36] = [
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct GridVertex {
+    position: [f32; 3],
+}
+
+fn build_grid_vertices() -> Vec<GridVertex> {
+    let mut verts = Vec::new();
+    for i in -5..=5 {
+        let f = i as f32;
+        verts.push(GridVertex { position: [f, -1.0, -5.0] });
+        verts.push(GridVertex { position: [f, -1.0,  5.0] });
+        verts.push(GridVertex { position: [-5.0, -1.0, f] });
+        verts.push(GridVertex { position: [ 5.0, -1.0, f] });
+    }
+    verts
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraUniform {
     pub view_proj: [[f32; 4]; 4],
+    pub camera_pos: [f32; 4],
 }
 
 #[repr(C)]
@@ -81,6 +100,9 @@ pub struct GpuRenderer<S: FrameSink = crate::core::present::CpuBufferSink> {
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     model_bind_group_layout: wgpu::BindGroupLayout,
+    grid_pipeline: wgpu::RenderPipeline,
+    grid_vertex_buffer: wgpu::Buffer,
+    grid_num_vertices: u32,
     render_texture: wgpu::Texture,
     render_texture_view: wgpu::TextureView,
     depth_texture: wgpu::Texture,
@@ -133,11 +155,11 @@ impl<S: FrameSink> GpuRenderer<S> {
                 label: Some("camera bgl"),
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
-                        min_binding_size: std::num::NonZeroU64::new(64),
+                        min_binding_size: std::num::NonZeroU64::new(80),
                     },
                     count: None,
                 }],
@@ -211,6 +233,59 @@ impl<S: FrameSink> GpuRenderer<S> {
             cache: None,
         });
 
+        // --- grid pipeline: no model BGL, uses camera BGL only, LineList ---
+        let grid_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("grid pipeline layout"),
+            bind_group_layouts: &[Some(&camera_bg_layout)],
+            immediate_size: 0,
+        });
+
+        let grid_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("grid pipeline"),
+            layout: Some(&grid_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("grid_vs_main"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                buffers: &[Some(wgpu::VertexBufferLayout {
+                    array_stride: std::mem::size_of::<GridVertex>() as u64,
+                    step_mode: wgpu::VertexStepMode::Vertex,
+                    attributes: &wgpu::vertex_attr_array![
+                        0 => Float32x3
+                    ],
+                })],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("grid_fs_main"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::LineList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::Less),
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
+            multisample: wgpu::MultisampleState::default(),
+            multiview_mask: None,
+            cache: None,
+        });
+
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("cube vertices"),
             contents: bytemuck::cast_slice(&CUBE_VERTICES),
@@ -218,9 +293,17 @@ impl<S: FrameSink> GpuRenderer<S> {
         });
         let num_vertices = CUBE_VERTICES.len() as u32;
 
+        let grid_vertices = build_grid_vertices();
+        let grid_num_vertices = grid_vertices.len() as u32;
+        let grid_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("grid vertices"),
+            contents: bytemuck::cast_slice(&grid_vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
         let camera_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("camera uniform"),
-            size: 64,
+            size: std::mem::size_of::<CameraUniform>() as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -269,6 +352,9 @@ impl<S: FrameSink> GpuRenderer<S> {
             camera_buffer,
             camera_bind_group,
             model_bind_group_layout: model_bg_layout,
+            grid_pipeline,
+            grid_vertex_buffer,
+            grid_num_vertices,
             render_texture,
             render_texture_view,
             depth_texture,
@@ -306,6 +392,7 @@ impl<S: FrameSink> GpuRenderer<S> {
     pub fn render_frame(
         &mut self,
         view_proj: &glam::Mat4,
+        eye: &glam::Vec3,
         node_transforms: &[Transform],
         width: u32,
         height: u32,
@@ -325,6 +412,7 @@ impl<S: FrameSink> GpuRenderer<S> {
             0,
             bytemuck::bytes_of(&CameraUniform {
                 view_proj: view_proj.to_cols_array_2d(),
+                camera_pos: [eye.x, eye.y, eye.z, 1.0],
             }),
         );
 
@@ -356,6 +444,13 @@ impl<S: FrameSink> GpuRenderer<S> {
                 multiview_mask: None,
             });
 
+            // draw ground grid
+            rpass.set_pipeline(&self.grid_pipeline);
+            rpass.set_bind_group(0, &self.camera_bind_group, &[]);
+            rpass.set_vertex_buffer(0, self.grid_vertex_buffer.slice(..));
+            rpass.draw(0..self.grid_num_vertices, 0..1);
+
+            // draw cubes
             rpass.set_pipeline(&self.render_pipeline);
             rpass.set_bind_group(0, &self.camera_bind_group, &[]);
             rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
@@ -392,7 +487,7 @@ pub fn build_view_projection_for_scene(
     scene: &Scene3D,
     width: u32,
     height: u32,
-) -> glam::Mat4 {
+) -> (glam::Mat4, glam::Vec3) {
     let eye = glam::Vec3::new(
         scene.camera.position.x,
         scene.camera.position.y,
@@ -407,7 +502,7 @@ pub fn build_view_projection_for_scene(
     let view = glam::Mat4::look_at_rh(eye, target, up);
     let aspect = width as f32 / height as f32;
     let proj = glam::Mat4::perspective_rh(scene.camera.fov, aspect, 0.1, 100.0);
-    proj * view
+    (proj * view, eye)
 }
 
 fn build_model_matrix(t: &Transform) -> glam::Mat4 {

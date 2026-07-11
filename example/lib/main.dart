@@ -39,7 +39,7 @@ class _DemoScreenState extends State<DemoScreen> {
   bool _autoRotate = true;
 
   static const double _panSensitivity = 0.007;
-  static const double _zoomStep = 0.5;
+  static const double _zoomStep = 0.005;
   static const double _minRadius = 2.0;
   static const double _maxRadius = 15.0;
   static const double _phiMin = -1.4;

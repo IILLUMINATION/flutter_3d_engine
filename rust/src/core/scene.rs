@@ -159,18 +159,18 @@ impl Scene3D {
             self.gpu_height = height;
         }
 
-        let view_proj =
+        let (view_proj, eye) =
             crate::core::renderer_gpu::build_view_projection_for_scene(self, width, height);
         let node_transforms: Vec<Transform> =
             self.nodes.iter().map(|n| n.transform).collect();
 
         match &mut self.renderer {
             RendererVariant::Cpu(r) => {
-                r.render_frame(&view_proj, &node_transforms, width, height)
+                r.render_frame(&view_proj, &eye, &node_transforms, width, height)
             }
             RendererVariant::Iron { renderer, iron } => {
                 let pixels =
-                    renderer.render_frame(&view_proj, &node_transforms, width, height);
+                    renderer.render_frame(&view_proj, &eye, &node_transforms, width, height);
                 iron.provider().update_frame(&pixels);
                 iron.sendable().mark_frame_available();
                 pixels
