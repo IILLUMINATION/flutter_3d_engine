@@ -37,7 +37,7 @@ Future<BigInt> addCube({
   b: b,
 );
 
-Future<void> updateNodeTransform({
+void updateNodeTransform({
   required Scene3D scene,
   required BigInt nodeId,
   required double px,
@@ -63,7 +63,7 @@ Future<void> updateNodeTransform({
   sz: sz,
 );
 
-Future<void> updateCamera({
+void updateCamera({
   required Scene3D scene,
   required double px,
   required double py,
@@ -81,8 +81,39 @@ Future<void> updateCamera({
   tz: tz,
 );
 
-Future<void> physicsStep({required Scene3D scene, required double dt}) =>
+void physicsStep({required Scene3D scene, required double dt}) =>
     RustLib.instance.api.crateApiSimplePhysicsStep(scene: scene, dt: dt);
+
+bool handlePointerDown({
+  required Scene3D scene,
+  required double screenX,
+  required double screenY,
+  required double screenWidth,
+  required double screenHeight,
+}) => RustLib.instance.api.crateApiSimpleHandlePointerDown(
+  scene: scene,
+  screenX: screenX,
+  screenY: screenY,
+  screenWidth: screenWidth,
+  screenHeight: screenHeight,
+);
+
+void handlePointerMove({
+  required Scene3D scene,
+  required double screenX,
+  required double screenY,
+  required double screenWidth,
+  required double screenHeight,
+}) => RustLib.instance.api.crateApiSimpleHandlePointerMove(
+  scene: scene,
+  screenX: screenX,
+  screenY: screenY,
+  screenWidth: screenWidth,
+  screenHeight: screenHeight,
+);
+
+void handlePointerUp({required Scene3D scene}) =>
+    RustLib.instance.api.crateApiSimpleHandlePointerUp(scene: scene);
 
 Future<void> setCameraPosition({
   required Scene3D scene,

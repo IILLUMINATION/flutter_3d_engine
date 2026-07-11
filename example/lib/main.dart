@@ -36,6 +36,8 @@ class _DemoScreenState extends State<DemoScreen> {
   double _phi = 0.2;
   double _radius = 5.0;
 
+  bool _isDragging = false;
+
   static const double _panSensitivity = 0.007;
   static const double _zoomStep = 0.005;
   static const double _minRadius = 2.0;
@@ -55,7 +57,6 @@ class _DemoScreenState extends State<DemoScreen> {
     _updateCameraPosition();
   }
 
-  // physics step + render — driven by Ticker in Rust3DCanvas
   void _onTick(Rust3DController controller, double elapsedSec, double deltaSec) {
     controller.physicsStep(deltaSec.clamp(0.0, 0.05));
   }
@@ -64,18 +65,42 @@ class _DemoScreenState extends State<DemoScreen> {
     final rng = math.Random();
     final x = (rng.nextDouble() - 0.5) * 2.0;
     final z = (rng.nextDouble() - 0.5) * 2.0;
-    _controller?.addCube(x: x, y: 4.0, z: z, r: rng.nextDouble(), g: rng.nextDouble(), b: rng.nextDouble()).then((id) {
-      setState(() => _cubeIds.add(id));
-    });
+    _controller?.addCube(
+      x: x, y: 4.0, z: z,
+      r: rng.nextDouble(), g: rng.nextDouble(), b: rng.nextDouble(),
+    ).then((id) => setState(() => _cubeIds.add(id)));
   }
 
-  void _onPanStart(DragStartDetails d) {}
+  void _onPanStart(DragStartDetails d) {
+    final ctrl = _controller;
+    if (ctrl == null) return;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final local = box.globalToLocal(d.globalPosition);
+    final hit = ctrl.handlePointerDown(local.dx, local.dy, box.size.width, box.size.height);
+    _isDragging = hit;
+    setState(() {});
+  }
 
   void _onPanUpdate(DragUpdateDetails d) {
-    _theta -= d.delta.dx * _panSensitivity;
-    _phi   += d.delta.dy * _panSensitivity;
-    _phi    = _phi.clamp(_phiMin, _phiMax);
-    _updateCameraPosition();
+    if (_isDragging) {
+      final box = context.findRenderObject() as RenderBox?;
+      if (box != null) {
+        final local = box.globalToLocal(d.globalPosition);
+        _controller?.handlePointerMove(local.dx, local.dy, box.size.width, box.size.height);
+      }
+    } else {
+      _theta -= d.delta.dx * _panSensitivity;
+      _phi   += d.delta.dy * _panSensitivity;
+      _phi    = _phi.clamp(_phiMin, _phiMax);
+      _updateCameraPosition();
+    }
+    setState(() {});
+  }
+
+  void _onPanEnd(DragEndDetails d) {
+    _controller?.handlePointerUp();
+    _isDragging = false;
     setState(() {});
   }
 
@@ -95,6 +120,7 @@ class _DemoScreenState extends State<DemoScreen> {
       child: GestureDetector(
         onPanStart: _onPanStart,
         onPanUpdate: _onPanUpdate,
+        onPanEnd: _onPanEnd,
         child: Stack(
           children: [
             Rust3DCanvas(
@@ -129,7 +155,7 @@ class _DemoScreenState extends State<DemoScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Cubes: ${_cubeIds.length}',
+                      'Cubes: ${_cubeIds.length}${_isDragging ? " (dragging)" : ""}',
                       style: const TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                     const SizedBox(height: 4),

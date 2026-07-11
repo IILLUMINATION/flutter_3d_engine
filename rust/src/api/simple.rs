@@ -37,6 +37,7 @@ pub fn add_cube(
     scene.add_cube_physics(x, y, z)
 }
 
+#[flutter_rust_bridge::frb(sync)]
 pub fn update_node_transform(
     scene: &mut Scene3D,
     node_id: u64,
@@ -53,6 +54,7 @@ pub fn update_node_transform(
     scene.update_node_transform(node_id, px, py, pz, rx, ry, rz, sx, sy, sz);
 }
 
+#[flutter_rust_bridge::frb(sync)]
 pub fn update_camera(
     scene: &mut Scene3D,
     px: f32,
@@ -65,8 +67,36 @@ pub fn update_camera(
     scene.update_camera(px, py, pz, tx, ty, tz);
 }
 
+#[flutter_rust_bridge::frb(sync)]
 pub fn physics_step(scene: &mut Scene3D, dt: f32) {
     scene.physics_step(dt);
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn handle_pointer_down(
+    scene: &mut Scene3D,
+    screen_x: f32,
+    screen_y: f32,
+    screen_width: f32,
+    screen_height: f32,
+) -> bool {
+    scene.handle_pointer_down(screen_x, screen_y, screen_width, screen_height)
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn handle_pointer_move(
+    scene: &mut Scene3D,
+    screen_x: f32,
+    screen_y: f32,
+    screen_width: f32,
+    screen_height: f32,
+) {
+    scene.handle_pointer_move(screen_x, screen_y, screen_width, screen_height);
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn handle_pointer_up(scene: &mut Scene3D) {
+    scene.handle_pointer_up();
 }
 
 pub fn set_camera_position(scene: &mut Scene3D, x: f32, y: f32, z: f32) {

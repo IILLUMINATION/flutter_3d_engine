@@ -28,7 +28,7 @@ class Rust3DController {
     );
   }
 
-  Future<void> setNodeTransform({
+  void setNodeTransform({
     required BigInt nodeId,
     double px = 0,
     double py = 0,
@@ -40,7 +40,7 @@ class Rust3DController {
     double sy = 1,
     double sz = 1,
   }) {
-    return ffi.updateNodeTransform(
+    ffi.updateNodeTransform(
       scene: _scene,
       nodeId: nodeId,
       px: px,
@@ -55,7 +55,7 @@ class Rust3DController {
     );
   }
 
-  Future<void> setCamera({
+  void setCamera({
     double px = 0,
     double py = 2,
     double pz = 5,
@@ -63,7 +63,7 @@ class Rust3DController {
     double ty = 0,
     double tz = 0,
   }) {
-    return ffi.updateCamera(
+    ffi.updateCamera(
       scene: _scene,
       px: px,
       py: py,
@@ -74,7 +74,15 @@ class Rust3DController {
     );
   }
 
-  Future<void> physicsStep(double dt) => ffi.physicsStep(scene: _scene, dt: dt);
+  void physicsStep(double dt) => ffi.physicsStep(scene: _scene, dt: dt);
+
+  bool handlePointerDown(double sx, double sy, double sw, double sh) =>
+      ffi.handlePointerDown(scene: _scene, screenX: sx, screenY: sy, screenWidth: sw, screenHeight: sh);
+
+  void handlePointerMove(double sx, double sy, double sw, double sh) =>
+      ffi.handlePointerMove(scene: _scene, screenX: sx, screenY: sy, screenWidth: sw, screenHeight: sh);
+
+  void handlePointerUp() => ffi.handlePointerUp(scene: _scene);
 
   Future<void> setFov(double fov) => ffi.setCameraFov(scene: _scene, fov: fov);
 }

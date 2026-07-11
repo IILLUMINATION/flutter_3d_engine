@@ -505,6 +505,10 @@ pub fn build_view_projection_for_scene(
     (proj * view, eye)
 }
 
+pub fn build_view_proj_matrix(scene: &crate::core::scene::Scene3D, width: u32, height: u32) -> glam::Mat4 {
+    build_view_projection_for_scene(scene, width, height).0
+}
+
 fn build_model_matrix(t: &Transform) -> glam::Mat4 {
     let translation = glam::Vec3::new(t.position.x, t.position.y, t.position.z);
     let scale = glam::Vec3::new(t.scale.x, t.scale.y, t.scale.z);

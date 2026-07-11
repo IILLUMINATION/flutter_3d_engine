@@ -67,7 +67,7 @@ class _Rust3DCanvasState extends State<Rust3DCanvas>
     _ticker.start();
   }
 
-  void _onTick(Duration elapsed) async {
+  void _onTick(Duration elapsed) {
     final scene = _scene;
     if (scene == null) return;
 
@@ -83,7 +83,7 @@ class _Rust3DCanvasState extends State<Rust3DCanvas>
       widget.onTick?.call(ctrl, elapsedSec, deltaSec);
     }
 
-    await renderNativeFrame(
+    renderNativeFrame(
       scene: scene,
       width: widget.width,
       height: widget.height,

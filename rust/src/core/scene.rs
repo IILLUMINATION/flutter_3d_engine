@@ -63,6 +63,7 @@ pub struct Scene3D {
     gravity:             Vector3,
     rigid_body_set:      RigidBodySet,
     collider_set:        ColliderSet,
+    query_pipeline:      QueryPipeline,
     integration_parameters: IntegrationParameters,
     physics_pipeline:    PhysicsPipeline,
     island_manager:      IslandManager,
@@ -71,6 +72,9 @@ pub struct Scene3D {
     impulse_joint_set:   ImpulseJointSet,
     multibody_joint_set: MultibodyJointSet,
     ccd_solver:          CCDSolver,
+
+    // ray-picking
+    pub dragged_body: Option<(RigidBodyHandle, f32)>,
 }
 
 impl Scene3D {
@@ -109,6 +113,8 @@ impl Scene3D {
             impulse_joint_set:      ImpulseJointSet::new(),
             multibody_joint_set:    MultibodyJointSet::new(),
             ccd_solver:             CCDSolver::new(),
+            query_pipeline:         QueryPipeline::new(),
+            dragged_body:           None,
         }
     }
 
@@ -118,6 +124,8 @@ impl Scene3D {
 
         let rb = RigidBodyBuilder::dynamic()
             .translation(vector![px, py, pz])
+            .linear_damping(0.2)
+            .angular_damping(1.0)
             .build();
         let rb_handle = self.rigid_body_set.insert(rb);
         let collider = ColliderBuilder::cuboid(0.5, 0.5, 0.5)
@@ -215,6 +223,88 @@ impl Scene3D {
 
     pub fn texture_id(&self) -> Option<i64> {
         self.texture_id
+    }
+
+    fn build_ray(&self, screen_x: f32, screen_y: f32, screen_width: f32, screen_height: f32) -> (glam::Vec3, glam::Vec3) {
+        let view_proj = crate::core::renderer_gpu::build_view_proj_matrix(self, screen_width as u32, screen_height as u32);
+        let inv_vp = view_proj.inverse();
+
+        let ndc_x = (screen_x / screen_width) * 2.0 - 1.0;
+        let ndc_y = 1.0 - (screen_y / screen_height) * 2.0;
+
+        let near = inv_vp * glam::Vec4::new(ndc_x, ndc_y, 0.0, 1.0);
+        let near = near / near.w;
+        let far = inv_vp * glam::Vec4::new(ndc_x, ndc_y, 1.0, 1.0);
+        let far = far / far.w;
+
+        let origin = glam::Vec3::new(near.x, near.y, near.z);
+        let dir = (glam::Vec3::new(far.x, far.y, far.z) - origin).normalize();
+        (origin, dir)
+    }
+
+    pub fn handle_pointer_down(
+        &mut self,
+        screen_x: f32,
+        screen_y: f32,
+        screen_width: f32,
+        screen_height: f32,
+    ) -> bool {
+        let (origin, dir) = self.build_ray(screen_x, screen_y, screen_width, screen_height);
+        let ray = Ray::new(
+            point![origin.x, origin.y, origin.z],
+            vector![dir.x, dir.y, dir.z],
+        );
+
+        let max_toi = 100.0;
+        let solid = true;
+        let filter = QueryFilter::default();
+
+        self.query_pipeline.update(&self.collider_set);
+
+        if let Some((collider_handle, toi)) = self.query_pipeline.cast_ray(
+            &self.rigid_body_set,
+            &self.collider_set,
+            &ray,
+            max_toi,
+            solid,
+            filter,
+        ) {
+            if let Some(rb_handle) = self.collider_set.get(collider_handle).and_then(|c| c.parent()) {
+                let hit_point = ray.point_at(toi);
+                let eye = glam::Vec3::new(
+                    self.camera.position.x,
+                    self.camera.position.y,
+                    self.camera.position.z,
+                );
+                let distance = (glam::Vec3::new(hit_point.x, hit_point.y, hit_point.z) - eye).length();
+                self.dragged_body = Some((rb_handle, distance));
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn handle_pointer_move(
+        &mut self,
+        screen_x: f32,
+        screen_y: f32,
+        screen_width: f32,
+        screen_height: f32,
+    ) {
+        if let Some((handle, distance)) = self.dragged_body {
+            let (origin, dir) = self.build_ray(screen_x, screen_y, screen_width, screen_height);
+            let new_pos = origin + dir * distance;
+
+            if let Some(rb) = self.rigid_body_set.get_mut(handle) {
+                rb.set_linvel(vector![0.0, 0.0, 0.0], true);
+                rb.set_angvel(vector![0.0, 0.0, 0.0], true);
+                rb.set_translation(vector![new_pos.x, new_pos.y, new_pos.z], true);
+            }
+        }
+    }
+
+    pub fn handle_pointer_up(&mut self) {
+        self.dragged_body = None;
     }
 
     pub fn render_gpu(&mut self, width: u32, height: u32) -> Vec<u8> {
