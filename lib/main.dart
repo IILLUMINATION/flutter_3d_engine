@@ -16,10 +16,7 @@ class AppRoot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Scaffold(
-        backgroundColor: Colors.black,
-        body: SafeArea(child: Center(child: const Viewport3D())),
-      ),
+      home: const Viewport3D(),
     );
   }
 }
@@ -94,11 +91,14 @@ class _Viewport3DState extends State<Viewport3D>
     if (textureId == null) {
       return const Center(child: CircularProgressIndicator(color: Colors.white));
     }
-    return SizedBox(
-      width: width.toDouble(),
-      height: height.toDouble(),
-      child: FittedBox(
-        child: Texture(textureId: textureId),
+    return Scaffold(
+      backgroundColor: const Color(0xFF1E1E28),
+      body: Center(
+        child: SizedBox(
+          width: width.toDouble(),
+          height: height.toDouble(),
+          child: Texture(textureId: textureId),
+        ),
       ),
     );
   }
