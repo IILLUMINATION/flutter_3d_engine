@@ -1,4 +1,4 @@
-name: rust_lib_flutter_3d_engine
+name: rust_lib_flutter_rust_3d
 description: "Utility to build Rust code"
 version: 0.0.1
 publish_to: none

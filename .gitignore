@@ -33,6 +33,16 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Build artifacts (Flutter + Rust)
+**/build/
+**/.dart_tool/
+**/target/
+**/*.o
+**/*.a
+**/*.so
+example/linux/flutter/ephemeral/
+example/.flutter-plugins-dependencies
+
 # Symbolication related
 app.*.symbols
 

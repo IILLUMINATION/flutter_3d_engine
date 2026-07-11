@@ -7,13 +7,7 @@ pub fn init_app() {
 }
 
 pub fn create_scene() -> Scene3D {
-    let mut scene = Scene3D::new();
-    scene.add_test_cube();
-    scene
-}
-
-pub fn update_scene(scene: &mut Scene3D, dt: f32) {
-    scene.update(dt);
+    Scene3D::new()
 }
 
 pub fn get_camera_position(scene: &Scene3D) -> (f32, f32, f32) {
@@ -30,49 +24,50 @@ pub fn get_camera_fov(scene: &Scene3D) -> f32 {
     scene.camera.fov
 }
 
-pub fn add_cube(scene: &mut Scene3D) -> u64 {
-    scene.add_test_cube()
-}
-
-pub fn add_node(
+pub fn add_cube(
     scene: &mut Scene3D,
-    px: f32, py: f32, pz: f32,
-    rx: f32, ry: f32, rz: f32,
-    sx: f32, sy: f32, sz: f32,
-    mesh_id: Option<u64>,
+    x: f32,
+    y: f32,
+    z: f32,
+    r: f32,
+    g: f32,
+    b: f32,
 ) -> u64 {
     let transform = crate::core::math::Transform {
-        position: Vector3::new(px, py, pz),
-        rotation: Vector3::new(rx, ry, rz),
-        scale:    Vector3::new(sx, sy, sz),
+        position: Vector3::new(x, y, z),
+        rotation: Vector3::ZERO,
+        scale:    Vector3::ONE,
     };
-    scene.add_node(transform, mesh_id)
+    let _color = r * r + g * g + b * b;
+    scene.add_node(transform, Some(100u64))
 }
 
-pub fn get_node_position(scene: &Scene3D, node_id: u64) -> Option<(f32, f32, f32)> {
-    scene.get_node(node_id).map(|n| {
-        (n.transform.position.x, n.transform.position.y, n.transform.position.z)
-    })
+pub fn update_node_transform(
+    scene: &mut Scene3D,
+    node_id: u64,
+    px: f32,
+    py: f32,
+    pz: f32,
+    rx: f32,
+    ry: f32,
+    rz: f32,
+    sx: f32,
+    sy: f32,
+    sz: f32,
+) {
+    scene.update_node_transform(node_id, px, py, pz, rx, ry, rz, sx, sy, sz);
 }
 
-pub fn get_node_rotation(scene: &Scene3D, node_id: u64) -> Option<(f32, f32, f32)> {
-    scene.get_node(node_id).map(|n| {
-        (n.transform.rotation.x, n.transform.rotation.y, n.transform.rotation.z)
-    })
-}
-
-pub fn get_node_scale(scene: &Scene3D, node_id: u64) -> Option<(f32, f32, f32)> {
-    scene.get_node(node_id).map(|n| {
-        (n.transform.scale.x, n.transform.scale.y, n.transform.scale.z)
-    })
-}
-
-pub fn get_elapsed_time(scene: &Scene3D) -> f32 {
-    scene.elapsed
-}
-
-pub fn get_node_count(scene: &Scene3D) -> u64 {
-    scene.nodes.len() as u64
+pub fn update_camera(
+    scene: &mut Scene3D,
+    px: f32,
+    py: f32,
+    pz: f32,
+    tx: f32,
+    ty: f32,
+    tz: f32,
+) {
+    scene.update_camera(px, py, pz, tx, ty, tz);
 }
 
 pub fn set_camera_position(scene: &mut Scene3D, x: f32, y: f32, z: f32) {

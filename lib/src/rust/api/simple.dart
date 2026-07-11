@@ -10,9 +10,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<Scene3D> createScene() =>
     RustLib.instance.api.crateApiSimpleCreateScene();
 
-Future<void> updateScene({required Scene3D scene, required double dt}) =>
-    RustLib.instance.api.crateApiSimpleUpdateScene(scene: scene, dt: dt);
-
 Future<(double, double, double)> getCameraPosition({required Scene3D scene}) =>
     RustLib.instance.api.crateApiSimpleGetCameraPosition(scene: scene);
 
@@ -22,11 +19,27 @@ Future<(double, double, double)> getCameraTarget({required Scene3D scene}) =>
 Future<double> getCameraFov({required Scene3D scene}) =>
     RustLib.instance.api.crateApiSimpleGetCameraFov(scene: scene);
 
-Future<BigInt> addCube({required Scene3D scene}) =>
-    RustLib.instance.api.crateApiSimpleAddCube(scene: scene);
-
-Future<BigInt> addNode({
+Future<BigInt> addCube({
   required Scene3D scene,
+  required double x,
+  required double y,
+  required double z,
+  required double r,
+  required double g,
+  required double b,
+}) => RustLib.instance.api.crateApiSimpleAddCube(
+  scene: scene,
+  x: x,
+  y: y,
+  z: z,
+  r: r,
+  g: g,
+  b: b,
+);
+
+Future<void> updateNodeTransform({
+  required Scene3D scene,
+  required BigInt nodeId,
   required double px,
   required double py,
   required double pz,
@@ -36,9 +49,9 @@ Future<BigInt> addNode({
   required double sx,
   required double sy,
   required double sz,
-  BigInt? meshId,
-}) => RustLib.instance.api.crateApiSimpleAddNode(
+}) => RustLib.instance.api.crateApiSimpleUpdateNodeTransform(
   scene: scene,
+  nodeId: nodeId,
   px: px,
   py: py,
   pz: pz,
@@ -48,38 +61,25 @@ Future<BigInt> addNode({
   sx: sx,
   sy: sy,
   sz: sz,
-  meshId: meshId,
 );
 
-Future<(double, double, double)?> getNodePosition({
+Future<void> updateCamera({
   required Scene3D scene,
-  required BigInt nodeId,
-}) => RustLib.instance.api.crateApiSimpleGetNodePosition(
+  required double px,
+  required double py,
+  required double pz,
+  required double tx,
+  required double ty,
+  required double tz,
+}) => RustLib.instance.api.crateApiSimpleUpdateCamera(
   scene: scene,
-  nodeId: nodeId,
+  px: px,
+  py: py,
+  pz: pz,
+  tx: tx,
+  ty: ty,
+  tz: tz,
 );
-
-Future<(double, double, double)?> getNodeRotation({
-  required Scene3D scene,
-  required BigInt nodeId,
-}) => RustLib.instance.api.crateApiSimpleGetNodeRotation(
-  scene: scene,
-  nodeId: nodeId,
-);
-
-Future<(double, double, double)?> getNodeScale({
-  required Scene3D scene,
-  required BigInt nodeId,
-}) => RustLib.instance.api.crateApiSimpleGetNodeScale(
-  scene: scene,
-  nodeId: nodeId,
-);
-
-Future<double> getElapsedTime({required Scene3D scene}) =>
-    RustLib.instance.api.crateApiSimpleGetElapsedTime(scene: scene);
-
-Future<BigInt> getNodeCount({required Scene3D scene}) =>
-    RustLib.instance.api.crateApiSimpleGetNodeCount(scene: scene);
 
 Future<void> setCameraPosition({
   required Scene3D scene,

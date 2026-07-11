@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn render_scene_returns_correctly_sized_buffer() {
         let mut scene = Scene3D::new();
-        scene.add_test_cube();
+        scene.add_node(crate::core::math::Transform::IDENTITY, Some(100u64));
         let buf = render_scene(&scene, 64, 48);
         assert_eq!(buf.len(), 64 * 48 * 4);
     }
@@ -236,7 +236,7 @@ mod tests {
     #[test]
     fn render_scene_with_camera_moved() {
         let mut scene = Scene3D::new();
-        scene.add_test_cube();
+        scene.add_node(crate::core::math::Transform::IDENTITY, Some(100u64));
         scene.camera.position = Vector3::new(0.0, 0.0, 3.0);
         let buf = render_scene(&scene, 100, 100);
         assert_eq!(buf.len(), 100 * 100 * 4);

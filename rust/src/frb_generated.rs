@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1806973493;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -343449425;
 
 // Section: executor
 
@@ -72,6 +72,12 @@ fn wire__crate__api__simple__add_cube_impl(
             let api_scene = <RustOpaqueMoi<
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Scene3D>,
             >>::sse_decode(&mut deserializer);
+            let api_x = <f32>::sse_decode(&mut deserializer);
+            let api_y = <f32>::sse_decode(&mut deserializer);
+            let api_z = <f32>::sse_decode(&mut deserializer);
+            let api_r = <f32>::sse_decode(&mut deserializer);
+            let api_g = <f32>::sse_decode(&mut deserializer);
+            let api_b = <f32>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
@@ -89,78 +95,14 @@ fn wire__crate__api__simple__add_cube_impl(
                         }
                     }
                     let mut api_scene_guard = api_scene_guard.unwrap();
-                    let output_ok =
-                        Result::<_, ()>::Ok(crate::api::simple::add_cube(&mut *api_scene_guard))?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__simple__add_node_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "add_node",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_scene = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Scene3D>,
-            >>::sse_decode(&mut deserializer);
-            let api_px = <f32>::sse_decode(&mut deserializer);
-            let api_py = <f32>::sse_decode(&mut deserializer);
-            let api_pz = <f32>::sse_decode(&mut deserializer);
-            let api_rx = <f32>::sse_decode(&mut deserializer);
-            let api_ry = <f32>::sse_decode(&mut deserializer);
-            let api_rz = <f32>::sse_decode(&mut deserializer);
-            let api_sx = <f32>::sse_decode(&mut deserializer);
-            let api_sy = <f32>::sse_decode(&mut deserializer);
-            let api_sz = <f32>::sse_decode(&mut deserializer);
-            let api_mesh_id = <Option<u64>>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_scene_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_scene, 0, true,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_scene_guard = Some(api_scene.lockable_decode_sync_ref_mut()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let mut api_scene_guard = api_scene_guard.unwrap();
-                    let output_ok = Result::<_, ()>::Ok(crate::api::simple::add_node(
+                    let output_ok = Result::<_, ()>::Ok(crate::api::simple::add_cube(
                         &mut *api_scene_guard,
-                        api_px,
-                        api_py,
-                        api_pz,
-                        api_rx,
-                        api_ry,
-                        api_rz,
-                        api_sx,
-                        api_sy,
-                        api_sz,
-                        api_mesh_id,
+                        api_x,
+                        api_y,
+                        api_z,
+                        api_r,
+                        api_g,
+                        api_b,
                     ))?;
                     Ok(output_ok)
                 })())
@@ -345,266 +287,6 @@ fn wire__crate__api__simple__get_camera_target_impl(
                     let api_scene_guard = api_scene_guard.unwrap();
                     let output_ok = Result::<_, ()>::Ok(crate::api::simple::get_camera_target(
                         &*api_scene_guard,
-                    ))?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__simple__get_elapsed_time_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "get_elapsed_time",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_scene = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Scene3D>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_scene_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_scene, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_scene_guard = Some(api_scene.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_scene_guard = api_scene_guard.unwrap();
-                    let output_ok = Result::<_, ()>::Ok(crate::api::simple::get_elapsed_time(
-                        &*api_scene_guard,
-                    ))?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__simple__get_node_count_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "get_node_count",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_scene = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Scene3D>,
-            >>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_scene_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_scene, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_scene_guard = Some(api_scene.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_scene_guard = api_scene_guard.unwrap();
-                    let output_ok =
-                        Result::<_, ()>::Ok(crate::api::simple::get_node_count(&*api_scene_guard))?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__simple__get_node_position_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "get_node_position",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_scene = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Scene3D>,
-            >>::sse_decode(&mut deserializer);
-            let api_node_id = <u64>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_scene_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_scene, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_scene_guard = Some(api_scene.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_scene_guard = api_scene_guard.unwrap();
-                    let output_ok = Result::<_, ()>::Ok(crate::api::simple::get_node_position(
-                        &*api_scene_guard,
-                        api_node_id,
-                    ))?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__simple__get_node_rotation_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "get_node_rotation",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_scene = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Scene3D>,
-            >>::sse_decode(&mut deserializer);
-            let api_node_id = <u64>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_scene_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_scene, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_scene_guard = Some(api_scene.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_scene_guard = api_scene_guard.unwrap();
-                    let output_ok = Result::<_, ()>::Ok(crate::api::simple::get_node_rotation(
-                        &*api_scene_guard,
-                        api_node_id,
-                    ))?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__simple__get_node_scale_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "get_node_scale",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_scene = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Scene3D>,
-            >>::sse_decode(&mut deserializer);
-            let api_node_id = <u64>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let mut api_scene_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_scene, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_scene_guard = Some(api_scene.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_scene_guard = api_scene_guard.unwrap();
-                    let output_ok = Result::<_, ()>::Ok(crate::api::simple::get_node_scale(
-                        &*api_scene_guard,
-                        api_node_id,
                     ))?;
                     Ok(output_ok)
                 })())
@@ -985,7 +667,7 @@ fn wire__crate__api__simple__set_camera_target_impl(
         },
     )
 }
-fn wire__crate__api__simple__update_scene_impl(
+fn wire__crate__api__simple__update_camera_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -993,7 +675,7 @@ fn wire__crate__api__simple__update_scene_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "update_scene",
+            debug_name: "update_camera",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -1010,7 +692,12 @@ fn wire__crate__api__simple__update_scene_impl(
             let api_scene = <RustOpaqueMoi<
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Scene3D>,
             >>::sse_decode(&mut deserializer);
-            let api_dt = <f32>::sse_decode(&mut deserializer);
+            let api_px = <f32>::sse_decode(&mut deserializer);
+            let api_py = <f32>::sse_decode(&mut deserializer);
+            let api_pz = <f32>::sse_decode(&mut deserializer);
+            let api_tx = <f32>::sse_decode(&mut deserializer);
+            let api_ty = <f32>::sse_decode(&mut deserializer);
+            let api_tz = <f32>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
@@ -1029,7 +716,88 @@ fn wire__crate__api__simple__update_scene_impl(
                     }
                     let mut api_scene_guard = api_scene_guard.unwrap();
                     let output_ok = Result::<_, ()>::Ok({
-                        crate::api::simple::update_scene(&mut *api_scene_guard, api_dt);
+                        crate::api::simple::update_camera(
+                            &mut *api_scene_guard,
+                            api_px,
+                            api_py,
+                            api_pz,
+                            api_tx,
+                            api_ty,
+                            api_tz,
+                        );
+                    })?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__simple__update_node_transform_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "update_node_transform",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_scene = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Scene3D>,
+            >>::sse_decode(&mut deserializer);
+            let api_node_id = <u64>::sse_decode(&mut deserializer);
+            let api_px = <f32>::sse_decode(&mut deserializer);
+            let api_py = <f32>::sse_decode(&mut deserializer);
+            let api_pz = <f32>::sse_decode(&mut deserializer);
+            let api_rx = <f32>::sse_decode(&mut deserializer);
+            let api_ry = <f32>::sse_decode(&mut deserializer);
+            let api_rz = <f32>::sse_decode(&mut deserializer);
+            let api_sx = <f32>::sse_decode(&mut deserializer);
+            let api_sy = <f32>::sse_decode(&mut deserializer);
+            let api_sz = <f32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let mut api_scene_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_scene, 0, true,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_scene_guard = Some(api_scene.lockable_decode_sync_ref_mut()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let mut api_scene_guard = api_scene_guard.unwrap();
+                    let output_ok = Result::<_, ()>::Ok({
+                        crate::api::simple::update_node_transform(
+                            &mut *api_scene_guard,
+                            api_node_id,
+                            api_px,
+                            api_py,
+                            api_pz,
+                            api_rx,
+                            api_ry,
+                            api_rz,
+                            api_sx,
+                            api_sy,
+                            api_sz,
+                        );
                     })?;
                     Ok(output_ok)
                 })())
@@ -1087,28 +855,6 @@ impl SseDecode for Vec<u8> {
             ans_.push(<u8>::sse_decode(deserializer));
         }
         return ans_;
-    }
-}
-
-impl SseDecode for Option<(f32, f32, f32)> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<(f32, f32, f32)>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
-    }
-}
-
-impl SseDecode for Option<u64> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<u64>::sse_decode(deserializer));
-        } else {
-            return None;
-        }
     }
 }
 
@@ -1179,24 +925,21 @@ fn pde_ffi_dispatcher_primary_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         1 => wire__crate__api__simple__add_cube_impl(port, ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__simple__add_node_impl(port, ptr, rust_vec_len, data_len),
-        3 => wire__crate__api__simple__create_scene_impl(port, ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__simple__get_camera_fov_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__simple__get_camera_position_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__simple__get_camera_target_impl(port, ptr, rust_vec_len, data_len),
-        7 => wire__crate__api__simple__get_elapsed_time_impl(port, ptr, rust_vec_len, data_len),
-        8 => wire__crate__api__simple__get_node_count_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__simple__get_node_position_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__simple__get_node_rotation_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__simple__get_node_scale_impl(port, ptr, rust_vec_len, data_len),
-        12 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
-        13 => wire__crate__api__simple__init_native_texture_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__simple__render_native_frame_impl(port, ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__simple__render_scene_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__simple__set_camera_fov_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__simple__set_camera_position_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__simple__set_camera_target_impl(port, ptr, rust_vec_len, data_len),
-        19 => wire__crate__api__simple__update_scene_impl(port, ptr, rust_vec_len, data_len),
+        2 => wire__crate__api__simple__create_scene_impl(port, ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__simple__get_camera_fov_impl(port, ptr, rust_vec_len, data_len),
+        4 => wire__crate__api__simple__get_camera_position_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__simple__get_camera_target_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__simple__init_native_texture_impl(port, ptr, rust_vec_len, data_len),
+        8 => wire__crate__api__simple__render_native_frame_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__simple__render_scene_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__simple__set_camera_fov_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__simple__set_camera_position_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__simple__set_camera_target_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__simple__update_camera_impl(port, ptr, rust_vec_len, data_len),
+        14 => {
+            wire__crate__api__simple__update_node_transform_impl(port, ptr, rust_vec_len, data_len)
+        }
         _ => unreachable!(),
     }
 }
@@ -1266,26 +1009,6 @@ impl SseEncode for Vec<u8> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <u8>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Option<(f32, f32, f32)> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <(f32, f32, f32)>::sse_encode(value, serializer);
-        }
-    }
-}
-
-impl SseEncode for Option<u64> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <u64>::sse_encode(value, serializer);
         }
     }
 }
@@ -1369,14 +1092,14 @@ mod io {
     flutter_rust_bridge::frb_generated_boilerplate_io!();
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_flutter_3d_engine_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
+    pub extern "C" fn frbgen_flutter_rust_3d_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Scene3D>>::increment_strong_count(ptr as _);
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_flutter_3d_engine_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
+    pub extern "C" fn frbgen_flutter_rust_3d_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
         ptr: *const std::ffi::c_void,
     ) {
         MoiArc::<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Scene3D>>::decrement_strong_count(ptr as _);

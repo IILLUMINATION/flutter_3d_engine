@@ -7,7 +7,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
-  rust_lib_flutter_3d_engine
+  rust_lib_flutter_rust_3d
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)
