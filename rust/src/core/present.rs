@@ -1,3 +1,9 @@
+use std::sync::{Arc, Mutex};
+
+use irondash_texture::{
+    BoxedPixelData, PayloadProvider, SendableTexture, SimplePixelData, Texture,
+};
+
 pub trait FrameSink: Send + Sync {
     fn present(
         &mut self,
@@ -95,8 +101,7 @@ impl FrameSink for CpuBufferSink {
             .get_mapped_range()
             .expect("Failed to get mapped range");
         let unpadded = self.width as usize * 4;
-        let mut out =
-            Vec::with_capacity((self.width as usize) * (self.height as usize) * 4);
+        let mut out = Vec::with_capacity((self.width as usize) * (self.height as usize) * 4);
 
         for row in 0..(self.height as usize) {
             let start = row * self.padded_bytes_per_row as usize;
@@ -112,4 +117,76 @@ impl FrameSink for CpuBufferSink {
 
 fn pad_to_alignment(value: u32, alignment: u32) -> u32 {
     ((value + alignment - 1) / alignment) * alignment
+}
+
+// ---------------------------------------------------------------------------
+// Irondash native texture presenter using SendableTexture
+// ---------------------------------------------------------------------------
+
+pub struct IrondashTexturePresenter {
+    sendable: Arc<SendableTexture<BoxedPixelData>>,
+    provider: Arc<TexturePayloadProvider>,
+    texture_id: i64,
+}
+
+impl IrondashTexturePresenter {
+    pub fn new(engine_handle: i64, width: u32, height: u32) -> Self {
+        let (tx, rx) = std::sync::mpsc::channel::<Self>();
+        irondash_engine_context::EngineContext::perform_on_main_thread(move || {
+            let provider = Arc::new(TexturePayloadProvider::new(width, height));
+            let provider_clone: Arc<dyn PayloadProvider<BoxedPixelData>> = provider.clone();
+            let texture = Texture::new_with_provider(engine_handle, provider_clone)
+                .expect("Failed to create irondash texture");
+            let id = texture.id();
+            let sendable = texture.into_sendable_texture();
+            println!("[irondash] Texture registered, id={} (SendableTexture)", id);
+            tx.send(Self {
+                sendable,
+                provider,
+                texture_id: id,
+            }).ok();
+        })
+        .expect("Failed to run on main thread");
+        rx.recv().expect("Irondash Texture init failed")
+    }
+
+    pub fn texture_id(&self) -> i64 {
+        self.texture_id
+    }
+
+    pub fn sendable(&self) -> &Arc<SendableTexture<BoxedPixelData>> {
+        &self.sendable
+    }
+
+    pub fn provider(&self) -> &Arc<TexturePayloadProvider> {
+        &self.provider
+    }
+}
+
+pub struct TexturePayloadProvider {
+    width: u32,
+    height: u32,
+    latest_frame: Mutex<Vec<u8>>,
+}
+
+impl TexturePayloadProvider {
+    pub fn new(width: u32, height: u32) -> Self {
+        Self {
+            width,
+            height,
+            latest_frame: Mutex::new(vec![0u8; (width as usize) * (height as usize) * 4]),
+        }
+    }
+
+    pub fn update_frame(&self, pixels: &[u8]) {
+        let mut frame = self.latest_frame.lock().unwrap();
+        frame.copy_from_slice(pixels);
+    }
+}
+
+impl PayloadProvider<BoxedPixelData> for TexturePayloadProvider {
+    fn get_payload(&self) -> BoxedPixelData {
+        let frame = self.latest_frame.lock().unwrap();
+        SimplePixelData::new_boxed(self.width as i32, self.height as i32, frame.clone())
+    }
 }

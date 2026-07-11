@@ -117,3 +117,25 @@ Future<Uint8List> renderScene({
   width: width,
   height: height,
 );
+
+Future<PlatformInt64> initNativeTexture({
+  required Scene3D scene,
+  required PlatformInt64 engineHandle,
+  required int width,
+  required int height,
+}) => RustLib.instance.api.crateApiSimpleInitNativeTexture(
+  scene: scene,
+  engineHandle: engineHandle,
+  width: width,
+  height: height,
+);
+
+Future<void> renderNativeFrame({
+  required Scene3D scene,
+  required int width,
+  required int height,
+}) => RustLib.instance.api.crateApiSimpleRenderNativeFrame(
+  scene: scene,
+  width: width,
+  height: height,
+);

@@ -1,11 +1,9 @@
-import 'dart:typed_data';
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_3d_engine/src/rust/api/simple.dart';
 import 'package:flutter_3d_engine/src/rust/core/scene.dart';
 import 'package:flutter_3d_engine/src/rust/frb_generated.dart';
+import 'package:irondash_engine_context/irondash_engine_context.dart';
 
 Future<void> main() async {
   await RustLib.init();
@@ -20,7 +18,7 @@ class AppRoot extends StatelessWidget {
     return MaterialApp(
       home: Scaffold(
         backgroundColor: Colors.black,
-        body: SafeArea(child: Center(child: Viewport3D())),
+        body: SafeArea(child: Center(child: const Viewport3D())),
       ),
     );
   }
@@ -35,41 +33,42 @@ class Viewport3D extends StatefulWidget {
 
 class _Viewport3DState extends State<Viewport3D>
     with SingleTickerProviderStateMixin {
-  static const int bufferWidth = 320;
-  static const int bufferHeight = 240;
+  static const int width = 1280;
+  static const int height = 720;
 
-  late final Ticker _ticker;
   Scene3D? _scene;
-  ui.Image? _frame;
+  int? _textureId;
+  late final Ticker _ticker;
   DateTime? _lastTick;
 
   @override
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick);
-    _initScene();
+    _init();
   }
 
-  Future<void> _initScene() async {
+  Future<void> _init() async {
     final scene = await createScene();
-    setState(() => _scene = scene);
+
+    final handle = await EngineContext.instance.getEngineHandle();
+    final textureId = await initNativeTexture(
+      scene: scene,
+      engineHandle: handle,
+      width: width,
+      height: height,
+    );
+
+    setState(() {
+      _scene = scene;
+      _textureId = textureId;
+    });
     _ticker.start();
   }
 
-  Future<void> _onTick(Duration elapsed) async {
+  void _onTick(Duration elapsed) async {
     final scene = _scene;
     if (scene == null) return;
-
-    await updateScene(scene: scene, dt: 0.016);
-    final bytes = await renderScene(
-      scene: scene,
-      width: bufferWidth,
-      height: bufferHeight,
-    );
-
-    final image = await _createImage(bytes);
-    if (!mounted) return;
-    setState(() => _frame = image);
 
     final now = DateTime.now();
     if (_lastTick != null) {
@@ -78,61 +77,29 @@ class _Viewport3DState extends State<Viewport3D>
       print("Real Flutter FPS: ${fps.toStringAsFixed(1)}  (dt=${dt.inMilliseconds}ms)");
     }
     _lastTick = now;
-  }
 
-  Future<ui.Image> _createImage(Uint8List bytes) async {
-    final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
-    final descriptor = ui.ImageDescriptor.raw(
-      buffer,
-      width: bufferWidth,
-      height: bufferHeight,
-      pixelFormat: ui.PixelFormat.rgba8888,
-    );
-    final codec = await descriptor.instantiateCodec(
-      targetWidth: bufferWidth,
-      targetHeight: bufferHeight,
-    );
-    final frameInfo = await codec.getNextFrame();
-    descriptor.dispose();
-    return frameInfo.image;
+    await updateScene(scene: scene, dt: 0.016);
+    await renderNativeFrame(scene: scene, width: width, height: height);
   }
 
   @override
   void dispose() {
     _ticker.dispose();
-    _frame?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final frame = _frame;
-    return Stack(
-      children: [
-        SizedBox.expand(
-          child: frame != null
-              ? CustomPaint(painter: _FramePainter(frame))
-              : const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                ),
-        ),
-      ],
+    final textureId = _textureId;
+    if (textureId == null) {
+      return const Center(child: CircularProgressIndicator(color: Colors.white));
+    }
+    return SizedBox(
+      width: width.toDouble(),
+      height: height.toDouble(),
+      child: FittedBox(
+        child: Texture(textureId: textureId),
+      ),
     );
   }
-}
-
-class _FramePainter extends CustomPainter {
-  final ui.Image image;
-  _FramePainter(this.image);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final src = Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
-    final dst = Rect.fromLTWH(0, 0, size.width, size.height);
-    final paint = Paint()..filterQuality = FilterQuality.none;
-    canvas.drawImageRect(image, src, dst, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _FramePainter oldDelegate) => true;
 }

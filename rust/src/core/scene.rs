@@ -24,6 +24,27 @@ pub struct Node {
     pub mesh_id:   Option<u64>,
 }
 
+type CpuRenderer = crate::core::renderer_gpu::GpuRenderer<crate::core::present::CpuBufferSink>;
+
+enum RendererVariant {
+    None,
+    Cpu(CpuRenderer),
+    Iron {
+        renderer: crate::core::renderer_gpu::GpuRenderer<crate::core::present::CpuBufferSink>,
+        iron:     crate::core::present::IrondashTexturePresenter,
+    },
+}
+
+impl std::fmt::Debug for RendererVariant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, "None"),
+            Self::Cpu(_) => write!(f, "Cpu(GpuRenderer)"),
+            Self::Iron { .. } => write!(f, "Iron(GpuRenderer+Irondash)"),
+        }
+    }
+}
+
 #[derive(Debug)]
 #[flutter_rust_bridge::frb(opaque)]
 pub struct Scene3D {
@@ -32,9 +53,10 @@ pub struct Scene3D {
     pub light_count: u32,
     pub elapsed:     f32,
     next_id:         u64,
-    gpu_renderer:    Option<crate::core::renderer_gpu::GpuRenderer<crate::core::present::CpuBufferSink>>,
+    renderer:        RendererVariant,
     gpu_width:       u32,
     gpu_height:      u32,
+    texture_id:      Option<i64>,
 }
 
 impl Scene3D {
@@ -45,9 +67,10 @@ impl Scene3D {
             light_count: 0,
             elapsed:     0.0,
             next_id:     1,
-            gpu_renderer: None,
+            renderer:    RendererVariant::None,
             gpu_width:    0,
             gpu_height:   0,
+            texture_id:   None,
         }
     }
 
@@ -77,26 +100,63 @@ impl Scene3D {
 
     pub fn update(&mut self, dt: f32) {
         self.elapsed += dt;
-
-        let angular_velocity = 1.0; // radians per second around Y axis
+        let angular_velocity = 1.0;
         for node in &mut self.nodes {
             node.transform.rotation.y += angular_velocity * dt;
         }
     }
 
+    pub fn init_native_texture(&mut self, engine_handle: i64, width: u32, height: u32) -> i64 {
+        println!("[scene] Initializing native irondash texture: {}x{}", width, height);
+        let iron = crate::core::present::IrondashTexturePresenter::new(engine_handle, width, height);
+        let id = iron.texture_id();
+        let cpu_sink = crate::core::present::CpuBufferSink::new(width, height);
+        let renderer = crate::core::renderer_gpu::GpuRenderer::new(width, height, cpu_sink);
+        self.renderer = RendererVariant::Iron { renderer, iron };
+        self.gpu_width = width;
+        self.gpu_height = height;
+        self.texture_id = Some(id);
+        id
+    }
+
+    pub fn texture_id(&self) -> Option<i64> {
+        self.texture_id
+    }
+
     pub fn render_gpu(&mut self, width: u32, height: u32) -> Vec<u8> {
-        if self.gpu_renderer.is_none() || self.gpu_width != width || self.gpu_height != height {
-            println!("[scene] Creating/resizing GpuRenderer: {}x{}", width, height);
+        let need_new = match &self.renderer {
+            RendererVariant::None => true,
+            _ => self.gpu_width != width || self.gpu_height != height,
+        };
+
+        if need_new && self.texture_id.is_none() {
+            println!("[scene] Creating/resizing CpuRenderer: {}x{}", width, height);
             let sink = crate::core::present::CpuBufferSink::new(width, height);
-            self.gpu_renderer = Some(crate::core::renderer_gpu::GpuRenderer::new(width, height, sink));
+            self.renderer = RendererVariant::Cpu(
+                crate::core::renderer_gpu::GpuRenderer::new(width, height, sink)
+            );
             self.gpu_width = width;
             self.gpu_height = height;
         }
-        // Scene data needed by renderer — snapshot before mutable borrow
-        let view_proj = crate::core::renderer_gpu::build_view_projection_for_scene(self, width, height);
-        let node_transforms: Vec<crate::core::math::Transform> = self.nodes.iter().map(|n| n.transform).collect();
-        let renderer = self.gpu_renderer.as_mut().unwrap();
-        renderer.render_frame(&view_proj, &node_transforms, width, height)
+
+        let view_proj =
+            crate::core::renderer_gpu::build_view_projection_for_scene(self, width, height);
+        let node_transforms: Vec<Transform> =
+            self.nodes.iter().map(|n| n.transform).collect();
+
+        match &mut self.renderer {
+            RendererVariant::Cpu(r) => {
+                r.render_frame(&view_proj, &node_transforms, width, height)
+            }
+            RendererVariant::Iron { renderer, iron } => {
+                let pixels =
+                    renderer.render_frame(&view_proj, &node_transforms, width, height);
+                iron.provider().update_frame(&pixels);
+                iron.sendable().mark_frame_available();
+                pixels
+            }
+            RendererVariant::None => vec![0; (width * height * 4) as usize],
+        }
     }
 }
 
@@ -106,9 +166,6 @@ impl Default for Scene3D {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Unit tests
-// ---------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,7 +183,6 @@ mod tests {
     fn add_test_cube() {
         let mut scene = Scene3D::new();
         let id = scene.add_test_cube();
-
         let cube = scene.get_node(id).expect("cube must exist");
         assert_eq!(cube.transform.position, Vector3::ZERO);
         assert_eq!(cube.transform.rotation, Vector3::ZERO);
@@ -137,14 +193,11 @@ mod tests {
     fn update_rotates_nodes() {
         let mut scene = Scene3D::new();
         let id = scene.add_test_cube();
-
-        let dt = PI / 2.0; // 90 degrees in radians
+        let dt = PI / 2.0;
         scene.update(dt);
-
         let cube = scene.get_node(id).unwrap();
         let epsilon = 1e-5;
-        assert!((cube.transform.rotation.y - PI / 2.0).abs() < epsilon,
-                "Expected ~PI/2 rotation, got {}", cube.transform.rotation.y);
+        assert!((cube.transform.rotation.y - PI / 2.0).abs() < epsilon);
         assert_eq!(cube.transform.rotation.x, 0.0);
         assert_eq!(cube.transform.rotation.z, 0.0);
     }
@@ -153,16 +206,13 @@ mod tests {
     fn update_accumulates_rotation_over_multiple_frames() {
         let mut scene = Scene3D::new();
         let id = scene.add_test_cube();
-
         let dt = 0.5;
         scene.update(dt);
         scene.update(dt);
         scene.update(dt);
-
         let cube = scene.get_node(id).unwrap();
         let epsilon = 1e-5;
-        assert!((cube.transform.rotation.y - 1.5).abs() < epsilon,
-                "Expected 1.5 rotation after 3 frames, got {}", cube.transform.rotation.y);
+        assert!((cube.transform.rotation.y - 1.5).abs() < epsilon);
     }
 
     #[test]
@@ -196,7 +246,6 @@ mod tests {
             scale:    Vector3::new(2.0, 2.0, 2.0),
         };
         let id = scene.add_node(transform, Some(42));
-
         let node = scene.get_node(id).unwrap();
         assert_eq!(node.transform.position, Vector3::new(10.0, 20.0, 30.0));
         assert_eq!(node.transform.rotation.z, 0.3);

@@ -90,3 +90,11 @@ pub fn set_camera_fov(scene: &mut Scene3D, fov: f32) {
 pub fn render_scene(scene: &mut Scene3D, width: u32, height: u32) -> Vec<u8> {
     scene.render_gpu(width, height)
 }
+
+pub fn init_native_texture(scene: &mut Scene3D, engine_handle: i64, width: u32, height: u32) -> i64 {
+    scene.init_native_texture(engine_handle, width, height)
+}
+
+pub fn render_native_frame(scene: &mut Scene3D, width: u32, height: u32) {
+    scene.render_gpu(width, height);
+}
