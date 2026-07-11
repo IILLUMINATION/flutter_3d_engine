@@ -83,6 +83,8 @@ pub struct GpuRenderer<S: FrameSink = crate::core::present::CpuBufferSink> {
     model_bind_group_layout: wgpu::BindGroupLayout,
     render_texture: wgpu::Texture,
     render_texture_view: wgpu::TextureView,
+    depth_texture: wgpu::Texture,
+    depth_view: wgpu::TextureView,
     sink: S,
 }
 
@@ -197,7 +199,13 @@ impl<S: FrameSink> GpuRenderer<S> {
                 unclipped_depth: false,
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: wgpu::TextureFormat::Depth32Float,
+                depth_write_enabled: Some(true),
+                depth_compare: Some(wgpu::CompareFunction::Less),
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState::default(),
             multiview_mask: None,
             cache: None,
@@ -238,6 +246,18 @@ impl<S: FrameSink> GpuRenderer<S> {
         });
         let render_texture_view = render_texture.create_view(&Default::default());
 
+        let depth_texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("depth texture"),
+            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+        let depth_view = depth_texture.create_view(&Default::default());
+
         println!("[renderer_gpu] Initialized {}x{}", width, height);
 
         Self {
@@ -251,6 +271,8 @@ impl<S: FrameSink> GpuRenderer<S> {
             model_bind_group_layout: model_bg_layout,
             render_texture,
             render_texture_view,
+            depth_texture,
+            depth_view,
             sink,
         }
     }
@@ -267,6 +289,18 @@ impl<S: FrameSink> GpuRenderer<S> {
             view_formats: &[],
         });
         self.render_texture_view = self.render_texture.create_view(&Default::default());
+
+        self.depth_texture = self.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("depth texture"),
+            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+        self.depth_view = self.depth_texture.create_view(&Default::default());
     }
 
     pub fn render_frame(
@@ -309,7 +343,14 @@ impl<S: FrameSink> GpuRenderer<S> {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 timestamp_writes: None,
                 occlusion_query_set: None,
                 multiview_mask: None,
