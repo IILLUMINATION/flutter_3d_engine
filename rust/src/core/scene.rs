@@ -261,7 +261,7 @@ impl Scene3D {
 
         self.query_pipeline.update(&self.collider_set);
 
-        if let Some((collider_handle, toi)) = self.query_pipeline.cast_ray(
+        if let Some((collider_handle, _toi)) = self.query_pipeline.cast_ray(
             &self.rigid_body_set,
             &self.collider_set,
             &ray,
@@ -270,14 +270,8 @@ impl Scene3D {
             filter,
         ) {
             if let Some(rb_handle) = self.collider_set.get(collider_handle).and_then(|c| c.parent()) {
-                let hit_point = ray.point_at(toi);
-                let eye = glam::Vec3::new(
-                    self.camera.position.x,
-                    self.camera.position.y,
-                    self.camera.position.z,
-                );
-                let distance = (glam::Vec3::new(hit_point.x, hit_point.y, hit_point.z) - eye).length();
-                self.dragged_body = Some((rb_handle, distance));
+                let current_y = self.rigid_body_set.get(rb_handle).map_or(0.0, |rb| rb.translation().y);
+                self.dragged_body = Some((rb_handle, current_y));
                 return true;
             }
         }
@@ -291,14 +285,22 @@ impl Scene3D {
         screen_width: f32,
         screen_height: f32,
     ) {
-        if let Some((handle, distance)) = self.dragged_body {
+        if let Some((handle, target_y)) = self.dragged_body {
             let (origin, dir) = self.build_ray(screen_x, screen_y, screen_width, screen_height);
-            let new_pos = origin + dir * distance;
 
-            if let Some(rb) = self.rigid_body_set.get_mut(handle) {
-                rb.set_linvel(vector![0.0, 0.0, 0.0], true);
-                rb.set_angvel(vector![0.0, 0.0, 0.0], true);
-                rb.set_translation(vector![new_pos.x, new_pos.y, new_pos.z], true);
+            if dir.y.abs() > 0.0001 {
+                let t = (target_y - origin.y) / dir.y;
+                let mut new_pos = origin + dir * t;
+
+                new_pos.x = new_pos.x.clamp(-6.0, 6.0);
+                new_pos.z = new_pos.z.clamp(-6.0, 6.0);
+                new_pos.y = target_y;
+
+                if let Some(rb) = self.rigid_body_set.get_mut(handle) {
+                    rb.set_linvel(vector![0.0, 0.0, 0.0], true);
+                    rb.set_angvel(vector![0.0, 0.0, 0.0], true);
+                    rb.set_translation(vector![new_pos.x, new_pos.y, new_pos.z], true);
+                }
             }
         }
     }

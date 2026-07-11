@@ -89,14 +89,14 @@ class _DemoScreenState extends State<DemoScreen> {
 
   // --- Единый роутер жестов мыши/тача ---
 
-  void _onPointerDown(PointerDownEvent event) async {
+  void _onPointerDown(PointerDownEvent event) {
     if (_controller == null) return;
 
-    final hit = await _controller!.handlePointerDown(
-      screenX: event.localPosition.dx,
-      screenY: event.localPosition.dy,
-      screenWidth: renderWidth,
-      screenHeight: renderHeight,
+    final hit = _controller!.handlePointerDown(
+      event.localPosition.dx,
+      event.localPosition.dy,
+      renderWidth,
+      renderHeight,
     );
 
     if (hit) {
@@ -112,10 +112,10 @@ class _DemoScreenState extends State<DemoScreen> {
 
     if (_isDraggingObject) {
       _controller!.handlePointerMove(
-        screenX: event.localPosition.dx,
-        screenY: event.localPosition.dy,
-        screenWidth: renderWidth,
-        screenHeight: renderHeight,
+        event.localPosition.dx,
+        event.localPosition.dy,
+        renderWidth,
+        renderHeight,
       );
     } else {
       setState(() {
@@ -157,24 +157,10 @@ class _DemoScreenState extends State<DemoScreen> {
         onPointerUp: _onPointerUp,
         onPointerSignal: _onPointerSignal,
         child: Stack(
-          children: [
-            // Вьюпорт 3D рендеринга
-            Positioned.fill(
-              child: Center(
-                child: SizedBox(
-                  width: renderWidth,
-                  height: renderHeight,
-                  child: Texture(
-                    textureId: _controller != null ? _controller!.textureId : 0,
-                  ),
-                ),
-              ),
-            ),
-            
-            // Скрытый Canvas для инициализации и тиков
+            children: [
             Rust3DCanvas(
-              width: renderWidth,
-              height: renderHeight,
+              width: renderWidth.toInt(),
+              height: renderHeight.toInt(),
               onCreated: _onCreated,
               onTick: _onTick,
             ),
@@ -269,10 +255,11 @@ class _DemoScreenState extends State<DemoScreen> {
   }
 
   Widget _buildDivider() {
-    return Divider(
-      color: Colors.white.withOpacity(0.05),
+    return const Divider(
+      color: Colors.white10,
       height: 1,
-      thickness: 1;
+      thickness: 1,
+    );
   }
 
   Widget _buildInfoRow(String label, String value, {bool isValueBold = false}) {
