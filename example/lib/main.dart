@@ -1,5 +1,4 @@
-import 'dart:math' as math;
-import 'dart:ui'; // Нужен для BackdropFilter (эффект размытия Blender)
+import 'dart:ui'; // Нужен для BackdropFilter (размытие Blender)
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -19,7 +18,9 @@ class AppRoot extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF1E1E22), // Оригинальный цвет вьюпорта Blender
+        scaffoldBackgroundColor: const Color(
+          0xFF1E1E22,
+        ), // Цвет вьюпорта Blender
       ),
       home: const DemoScreen(),
     );
@@ -37,37 +38,24 @@ class _DemoScreenState extends State<DemoScreen> {
   Rust3DController? _controller;
   final List<BigInt> _cubeIds = [];
 
-  // --- Состояние камеры ---
-  double _theta = 0.45;
-  double _phi = 0.35;
-  double _radius = 7.0;
-
-  // --- Состояние перетаскивания ---
-  bool _isDraggingObject = false; // Блокирует вращение камеры, если зажат куб
-  final double _panSensitivity = 0.005;
-  final double _zoomSensitivity = 0.005;
-
-  static const double _minRadius = 1.5;
-  static const double _maxRadius = 20.0;
-  static const double _phiMin = -1.4;
-  static const double _phiMax = 1.4;
+  // Состояние перетаскивания (для HUD индикатора)
+  bool _isDraggingObject = false;
 
   static const double renderWidth = 1280;
   static const double renderHeight = 720;
 
-  void _updateCameraPosition() {
-    final x = _radius * math.cos(_phi) * math.sin(_theta);
-    final y = _radius * math.sin(_phi);
-    final z = _radius * math.cos(_phi) * math.cos(_theta);
-    _controller?.setCamera(px: x, py: y, pz: z, tx: 0, ty: 0, tz: 0);
-  }
-
   void _onCreated(Rust3DController controller) {
     _controller = controller;
-    _updateCameraPosition();
+    // Инициализируем дефолтную камеру в Rust
+    _controller?.initDefaultCamera();
   }
 
-  void _onTick(Rust3DController controller, double elapsedSec, double deltaSec) {
+  // Шаг физики — вызывается Ticker-ом в пакете
+  void _onTick(
+    Rust3DController controller,
+    double elapsedSec,
+    double deltaSec,
+  ) {
     controller.physicsStep(deltaSec.clamp(0.0, 0.03));
   }
 
@@ -76,8 +64,8 @@ class _DemoScreenState extends State<DemoScreen> {
     final x = (rng.nextDouble() - 0.5) * 2.0;
     final z = (rng.nextDouble() - 0.5) * 2.0;
     final y = 4.0 + rng.nextDouble() * 2.0;
-    
-    // Красивые оранжево-персиковые оттенки Blender
+
+    // Blender-овские оранжевые оттенки
     final r = 0.9 + rng.nextDouble() * 0.1;
     final g = 0.45 + rng.nextDouble() * 0.15;
     final b = 0.2 + rng.nextDouble() * 0.1;
@@ -87,43 +75,37 @@ class _DemoScreenState extends State<DemoScreen> {
     });
   }
 
-  // --- Единый роутер жестов мыши/тача ---
+  // --- Единый роутер жестов мыши/тача (Передаем сырой ввод в Rust) ---
 
-  void _onPointerDown(PointerDownEvent event) {
+  void _onPointerDown(PointerDownEvent event) async {
     if (_controller == null) return;
 
-    final hit = _controller!.handlePointerDown(
-      event.localPosition.dx,
-      event.localPosition.dy,
-      renderWidth,
-      renderHeight,
+    final hit = await _controller!.handlePointerDown(
+      screenX: event.localPosition.dx,
+      screenY: event.localPosition.dy,
+      screenWidth: renderWidth,
+      screenHeight: renderHeight,
     );
 
-    if (hit) {
-      _isDraggingObject = true;
-    } else {
-      _isDraggingObject = false;
-    }
-    setState(() {});
+    setState(() {
+      _isDraggingObject = hit;
+    });
   }
 
   void _onPointerMove(PointerMoveEvent event) {
     if (_controller == null) return;
 
     if (_isDraggingObject) {
+      // Тащим объект по осям в Rust
       _controller!.handlePointerMove(
-        event.localPosition.dx,
-        event.localPosition.dy,
-        renderWidth,
-        renderHeight,
+        screenX: event.localPosition.dx,
+        screenY: event.localPosition.dy,
+        screenWidth: renderWidth,
+        screenHeight: renderHeight,
       );
     } else {
-      setState(() {
-        _theta -= event.delta.dx * _panSensitivity;
-        _phi   += event.delta.dy * _panSensitivity;
-        _phi    = _phi.clamp(_phiMin, _phiMax);
-      });
-      _updateCameraPosition();
+      // Вращаем камеру напрямую в Rust (передаем только смещение dx, dy!)
+      _controller!.orbitCamera(dx: event.delta.dx, dy: event.delta.dy);
     }
   }
 
@@ -139,12 +121,9 @@ class _DemoScreenState extends State<DemoScreen> {
   }
 
   void _onPointerSignal(PointerSignalEvent event) {
-    if (event is PointerScrollEvent) {
-      setState(() {
-        _radius -= event.scrollDelta.dy * _zoomSensitivity;
-        _radius  = _radius.clamp(_minRadius, _maxRadius);
-      });
-      _updateCameraPosition();
+    if (event is PointerScrollEvent && _controller != null) {
+      // Зуммируем камеру напрямую в Rust (передаем только дельту скролла)
+      _controller!.zoomCamera(delta: event.scrollDelta.dy);
     }
   }
 
@@ -157,10 +136,24 @@ class _DemoScreenState extends State<DemoScreen> {
         onPointerUp: _onPointerUp,
         onPointerSignal: _onPointerSignal,
         child: Stack(
-            children: [
+          children: [
+            // Вьюпорт 3D рендеринга
+            Positioned.fill(
+              child: Center(
+                child: SizedBox(
+                  width: renderWidth,
+                  height: renderHeight,
+                  child: Texture(
+                    textureId: _controller != null ? _controller!.textureId : 0,
+                  ),
+                ),
+              ),
+            ),
+
+            // Скрытый Canvas для инициализации и тиков
             Rust3DCanvas(
-              width: renderWidth.toInt(),
-              height: renderHeight.toInt(),
+              width: renderWidth,
+              height: renderHeight,
               onCreated: _onCreated,
               onTick: _onTick,
             ),
@@ -172,12 +165,17 @@ class _DemoScreenState extends State<DemoScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Эффект размытия стекла
+                  filter: ImageFilter.blur(
+                    sigmaX: 10,
+                    sigmaY: 10,
+                  ), // Размытие стекла
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     width: 220,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF28282E).withOpacity(0.75), // Матовый темно-серый
+                      color: const Color(
+                        0xFF28282E,
+                      ).withOpacity(0.75), // Матовый темно-серый
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: Colors.white.withOpacity(0.08),
@@ -199,7 +197,9 @@ class _DemoScreenState extends State<DemoScreen> {
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFE27F2D), // Оранжевый цвет Blender
+                            backgroundColor: const Color(
+                              0xFFE27F2D,
+                            ), // Оранжевый цвет Blender
                             foregroundColor: Colors.white,
                             elevation: 0,
                             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -211,13 +211,11 @@ class _DemoScreenState extends State<DemoScreen> {
                         const SizedBox(height: 16),
                         _buildDivider(),
                         const SizedBox(height: 12),
-                        _buildInfoRow('Cubes Count', '${_cubeIds.length}', isValueBold: true),
-                        const SizedBox(height: 8),
-                        _buildInfoRow('Azimuth (θ)', _theta.toStringAsFixed(2)),
-                        const SizedBox(height: 6),
-                        _buildInfoRow('Elevation (φ)', _phi.toStringAsFixed(2)),
-                        const SizedBox(height: 6),
-                        _buildInfoRow('Distance (r)', _radius.toStringAsFixed(1)),
+                        _buildInfoRow(
+                          'Cubes Count',
+                          '${_cubeIds.length}',
+                          isValueBold: true,
+                        ),
                         const SizedBox(height: 12),
                         _buildDivider(),
                         const SizedBox(height: 12),
@@ -228,12 +226,16 @@ class _DemoScreenState extends State<DemoScreen> {
                               height: 8,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: _isDraggingObject ? const Color(0xFFE27F2D) : Colors.greenAccent,
+                                color: _isDraggingObject
+                                    ? const Color(0xFFE27F2D)
+                                    : Colors.greenAccent,
                               ),
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              _isDraggingObject ? 'Dragging Node' : 'Orbit Camera Active',
+                              _isDraggingObject
+                                  ? 'Dragging Node'
+                                  : 'Orbit Camera Active',
                               style: const TextStyle(
                                 fontSize: 11,
                                 color: Colors.white70,
@@ -255,8 +257,8 @@ class _DemoScreenState extends State<DemoScreen> {
   }
 
   Widget _buildDivider() {
-    return const Divider(
-      color: Colors.white10,
+    return Divider(
+      color: Colors.white.withOpacity(0.05),
       height: 1,
       thickness: 1,
     );
