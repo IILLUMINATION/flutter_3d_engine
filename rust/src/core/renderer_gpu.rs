@@ -394,6 +394,8 @@ impl<S: FrameSink> GpuRenderer<S> {
         view_proj: &glam::Mat4,
         eye: &glam::Vec3,
         node_transforms: &[Transform],
+        gizmo_lines: &[([f32; 3], [f32; 3])],
+        gizmo_colors: &[[f32; 3]; 3],
         width: u32,
         height: u32,
     ) -> Vec<u8> {
@@ -449,6 +451,29 @@ impl<S: FrameSink> GpuRenderer<S> {
             rpass.set_bind_group(0, &self.camera_bind_group, &[]);
             rpass.set_vertex_buffer(0, self.grid_vertex_buffer.slice(..));
             rpass.draw(0..self.grid_num_vertices, 0..1);
+
+            // draw gizmo arrows if any
+            if !gizmo_lines.is_empty() {
+                let gizmo_verts: Vec<GridVertex> = gizmo_lines
+                    .iter()
+                    .flat_map(|(a, b)| {
+                        vec![
+                            GridVertex { position: *a },
+                            GridVertex { position: *b },
+                        ]
+                    })
+                    .collect();
+
+                let gizmo_buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("gizmo buf"),
+                    contents: bytemuck::cast_slice(&gizmo_verts),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+                rpass.set_vertex_buffer(0, gizmo_buf.slice(..));
+                for _i in 0..gizmo_lines.len() {
+                    rpass.draw((_i * 2) as u32..(_i * 2 + 2) as u32, 0..1);
+                }
+            }
 
             // draw cubes
             rpass.set_pipeline(&self.render_pipeline);

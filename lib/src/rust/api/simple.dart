@@ -10,15 +10,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<Scene3D> createScene() =>
     RustLib.instance.api.crateApiSimpleCreateScene();
 
-Future<(double, double, double)> getCameraPosition({required Scene3D scene}) =>
-    RustLib.instance.api.crateApiSimpleGetCameraPosition(scene: scene);
-
-Future<(double, double, double)> getCameraTarget({required Scene3D scene}) =>
-    RustLib.instance.api.crateApiSimpleGetCameraTarget(scene: scene);
-
-Future<double> getCameraFov({required Scene3D scene}) =>
-    RustLib.instance.api.crateApiSimpleGetCameraFov(scene: scene);
-
 Future<BigInt> addCube({
   required Scene3D scene,
   required double x,
@@ -37,52 +28,24 @@ Future<BigInt> addCube({
   b: b,
 );
 
-void updateNodeTransform({
-  required Scene3D scene,
-  required BigInt nodeId,
-  required double px,
-  required double py,
-  required double pz,
-  required double rx,
-  required double ry,
-  required double rz,
-  required double sx,
-  required double sy,
-  required double sz,
-}) => RustLib.instance.api.crateApiSimpleUpdateNodeTransform(
-  scene: scene,
-  nodeId: nodeId,
-  px: px,
-  py: py,
-  pz: pz,
-  rx: rx,
-  ry: ry,
-  rz: rz,
-  sx: sx,
-  sy: sy,
-  sz: sz,
-);
-
-void updateCamera({
-  required Scene3D scene,
-  required double px,
-  required double py,
-  required double pz,
-  required double tx,
-  required double ty,
-  required double tz,
-}) => RustLib.instance.api.crateApiSimpleUpdateCamera(
-  scene: scene,
-  px: px,
-  py: py,
-  pz: pz,
-  tx: tx,
-  ty: ty,
-  tz: tz,
-);
-
 void physicsStep({required Scene3D scene, required double dt}) =>
     RustLib.instance.api.crateApiSimplePhysicsStep(scene: scene, dt: dt);
+
+void initDefaultCamera({required Scene3D scene}) =>
+    RustLib.instance.api.crateApiSimpleInitDefaultCamera(scene: scene);
+
+void orbitCamera({
+  required Scene3D scene,
+  required double dx,
+  required double dy,
+}) => RustLib.instance.api.crateApiSimpleOrbitCamera(
+  scene: scene,
+  dx: dx,
+  dy: dy,
+);
+
+void zoomCamera({required Scene3D scene, required double delta}) =>
+    RustLib.instance.api.crateApiSimpleZoomCamera(scene: scene, delta: delta);
 
 bool handlePointerDown({
   required Scene3D scene,
@@ -115,6 +78,69 @@ void handlePointerMove({
 void handlePointerUp({required Scene3D scene}) =>
     RustLib.instance.api.crateApiSimpleHandlePointerUp(scene: scene);
 
+Future<Uint8List> renderScene({
+  required Scene3D scene,
+  required int width,
+  required int height,
+}) => RustLib.instance.api.crateApiSimpleRenderScene(
+  scene: scene,
+  width: width,
+  height: height,
+);
+
+void updateCamera({
+  required Scene3D scene,
+  required double px,
+  required double py,
+  required double pz,
+  required double tx,
+  required double ty,
+  required double tz,
+}) => RustLib.instance.api.crateApiSimpleUpdateCamera(
+  scene: scene,
+  px: px,
+  py: py,
+  pz: pz,
+  tx: tx,
+  ty: ty,
+  tz: tz,
+);
+
+void updateNodeTransform({
+  required Scene3D scene,
+  required BigInt nodeId,
+  required double px,
+  required double py,
+  required double pz,
+  required double rx,
+  required double ry,
+  required double rz,
+  required double sx,
+  required double sy,
+  required double sz,
+}) => RustLib.instance.api.crateApiSimpleUpdateNodeTransform(
+  scene: scene,
+  nodeId: nodeId,
+  px: px,
+  py: py,
+  pz: pz,
+  rx: rx,
+  ry: ry,
+  rz: rz,
+  sx: sx,
+  sy: sy,
+  sz: sz,
+);
+
+Future<(double, double, double)> getCameraPosition({required Scene3D scene}) =>
+    RustLib.instance.api.crateApiSimpleGetCameraPosition(scene: scene);
+
+Future<(double, double, double)> getCameraTarget({required Scene3D scene}) =>
+    RustLib.instance.api.crateApiSimpleGetCameraTarget(scene: scene);
+
+Future<double> getCameraFov({required Scene3D scene}) =>
+    RustLib.instance.api.crateApiSimpleGetCameraFov(scene: scene);
+
 Future<void> setCameraPosition({
   required Scene3D scene,
   required double x,
@@ -141,16 +167,6 @@ Future<void> setCameraTarget({
 
 Future<void> setCameraFov({required Scene3D scene, required double fov}) =>
     RustLib.instance.api.crateApiSimpleSetCameraFov(scene: scene, fov: fov);
-
-Future<Uint8List> renderScene({
-  required Scene3D scene,
-  required int width,
-  required int height,
-}) => RustLib.instance.api.crateApiSimpleRenderScene(
-  scene: scene,
-  width: width,
-  height: height,
-);
 
 Future<PlatformInt64> initNativeTexture({
   required Scene3D scene,
