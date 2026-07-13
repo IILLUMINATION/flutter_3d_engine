@@ -1,17 +1,33 @@
-# Flutter 3D Engine
+<p align="center">
+  <img src="animation.gif" width="720" alt="Flutter 3D Engine demo"/>
+</p>
 
-GPU-ускоренный 3D-движок для Flutter. Рендеринг через Rust + wgpu напрямую в нативную текстуру irondash, без копирования пикселей в Dart.
+<p align="center">
+  <a href="https://pub.dev"><img src="https://img.shields.io/badge/pub-v0.1.0-blue" alt="pub version"></a>
+  <a href="https://github.com/IILLUMINATION/flutter_3d_engine/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
+  <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-3.12+-blue" alt="dart"></a>
+  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/Rust-stable-orange" alt="rust"></a>
+  <a href="https://wgpu.rs"><img src="https://img.shields.io/badge/wgpu-24-red" alt="wgpu"></a>
+</p>
 
-## Стек
+---
 
-| Слой | Технология |
+# 🎮 Flutter 3D Engine
+
+GPU-accelerated 3D engine for Flutter. Renders through **Rust + wgpu** directly into an **irondash** native texture — zero pixel copies into Dart.
+
+> 👉 [Demo app](example/) — a Minecraft-style FPS sandbox showing what the engine can do.
+
+## 📦 Stack
+
+| Layer | Tech |
 |---|---|
-| Рендеринг | wgpu (Vulkan/Metal/DX12), WGSL-шейдеры |
-| Физика | Rapier3D — rigid bodies, коллизии, raycasting |
-| Текстура | irondash — GPU-буфер виден Flutter'у без копий |
-| Мост Rust↔Dart | flutter_rust_bridge 2.12 |
+| Rendering | **wgpu** (Vulkan / Metal / DX12), WGSL shaders |
+| Physics | **Rapier3D** — rigid bodies, collisions, raycasting |
+| Texture bridge | **irondash** — GPU buffer visible to Flutter, no copies |
+| FFI | **flutter_rust_bridge** 2.12 |
 
-## Быстрый старт
+## 🚀 Quick start
 
 ```bash
 git clone https://github.com/IILLUMINATION/flutter_3d_engine
@@ -20,75 +36,58 @@ flutter_rust_bridge_codegen generate
 cd example && flutter run -d linux
 ```
 
-## Минимальное использование
+## 📝 Minimal usage
 
 ```dart
 final scene = await createScene();
 final handle = await EngineContext.instance.getEngineHandle();
-final textureId = await initNativeTexture(scene: scene, engineHandle: handle, width: 1280, height: 720);
+final id = await initNativeTexture(scene: scene, engineHandle: handle, width: 1280, height: 720);
 
-final ctrl = Rust3DController.wrap(scene, textureId: textureId);
+final ctrl = Rust3DController.wrap(scene, textureId: id);
 ctrl.initDefaultCamera();
 
-// Игровой цикл
 void onTick(double dt) {
   ctrl.physicsStep(dt);
   renderNativeFrame(scene: scene, width: 1280, height: 720);
 }
 
-// Спавн куба
 ctrl.spawnCubeInFront(r: 1.0, g: 0.27, b: 0.0);
 ```
 
-## API
+## 🔧 API
 
 ```dart
-// Камера
-controller.orbitCamera(dx, dy);    // поворот мышью
-controller.movePlayer(dx, dz);     // WASD
+// Camera
+controller.orbitCamera(dx, dy);
+controller.movePlayer(dx, dz);
 controller.jumpPlayer();
 
-// Спавн и удаление
-controller.spawnCubeInFront();     // перед игроком
-controller.destroyLookedBlock();   // блок под прицелом
+// World editing
+controller.spawnCubeInFront(r: 1.0, g: 0.27, b: 0.0);
+controller.destroyLookedBlock();
 
-// Физика
-controller.physicsStep(dt);        // шаг симуляции
+// Simulation
+controller.physicsStep(dt);
 
-// Текстура
+// GPU texture
 final id = await initNativeTexture(scene, engineHandle, width, height);
-renderNativeFrame(scene, width, height);  // отрисовать кадр
+renderNativeFrame(scene, width, height);
 ```
 
-## Структура
+## 🏗️ How it works
 
-```
-lib/                          # Dart-пакет
-├── src/rust_3d_canvas.dart   # Виджет + Ticker
-├── src/rust_3d_controller.dart  # Обёртка над FFI
-└── src/rust/api/simple.dart  # Dart FFI
+1. An **irondash texture** is created — Flutter gets its ID, shows it with `Texture(textureId: id)`.
+2. Rust spins up a **wgpu device**, renders the scene straight into that same texture. No pixels travel through Dart.
+3. **Rapier3D** steps the physics each frame. The camera rides on the player's rigid body.
+4. **Raycasting** finds the block under the crosshair. Surface normals snap placement to the grid, Minecraft-style.
 
-rust/src/
-├── shader.wgsl               # WGSL (Blinn-Phong, instanced)
-├── api/simple.rs             # FFI Rust → Dart
-└── core/
-    ├── scene.rs              # Scene3D — физика, камера, спавн
-    ├── renderer_gpu.rs       # wgpu-рендерер
-    ├── renderer.rs           # CPU-wireframe (deprecated)
-    ├── present.rs            # IrondashTexturePresenter, FrameSink
-    └── math.rs               # Vector3, Transform
+## ✅ Status
 
-example/                      # Демо (FPS-песочница, отдельно)
-```
+- **Stable:** rendering, physics, camera, block spawn/destroy, 31 unit tests passing
+- **Planned:** pointer lock, textures, chunk generation, model loading
 
-Демо-пример в `example/` — отдельный пакет. Он показывает, как всё собрать вместе (WASD, захват мыши, хотбар, выбор цветов), но не является частью библиотеки.
+## 📄 License
 
-## Состояние
+MIT — use it, fork it, build on it. Just keep the copyright notice and attribution.
 
-Стабильно: рендеринг, физика, камера, спавн/удаление, 31 юнит-тест.
-
-В планах: Pointer Lock, текстуры, чанковая генерация, загрузка моделей.
-
-## Лицензия
-
-MIT
+Made with ☕ by [IILLUMINATION](https://github.com/IILLUMINATION).
