@@ -7,6 +7,10 @@ use crate::core::present::FrameSink;
 use crate::core::scene::Scene3D;
 
 const SHADER_SOURCE: &str = include_str!("../shader.wgsl");
+const MAX_INSTANCES: u32 = 500;
+const MAX_GRID_VERTS: u32 = 2500;
+const MAX_GIZMO_VERTS: u32 = 256;
+const GRID_VERTEX_SIZE: u64 = 24;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -16,79 +20,82 @@ struct Vertex {
 }
 
 const CUBE_VERTICES: [Vertex; 36] = [
-    Vertex { position: [-0.5, -0.5,  0.5], normal: [ 0.0,  0.0,  1.0] },
-    Vertex { position: [ 0.5, -0.5,  0.5], normal: [ 0.0,  0.0,  1.0] },
-    Vertex { position: [ 0.5,  0.5,  0.5], normal: [ 0.0,  0.0,  1.0] },
-    Vertex { position: [-0.5, -0.5,  0.5], normal: [ 0.0,  0.0,  1.0] },
-    Vertex { position: [ 0.5,  0.5,  0.5], normal: [ 0.0,  0.0,  1.0] },
-    Vertex { position: [-0.5,  0.5,  0.5], normal: [ 0.0,  0.0,  1.0] },
-
-    Vertex { position: [ 0.5, -0.5, -0.5], normal: [ 0.0,  0.0, -1.0] },
-    Vertex { position: [-0.5, -0.5, -0.5], normal: [ 0.0,  0.0, -1.0] },
-    Vertex { position: [-0.5,  0.5, -0.5], normal: [ 0.0,  0.0, -1.0] },
-    Vertex { position: [ 0.5, -0.5, -0.5], normal: [ 0.0,  0.0, -1.0] },
-    Vertex { position: [-0.5,  0.5, -0.5], normal: [ 0.0,  0.0, -1.0] },
-    Vertex { position: [ 0.5,  0.5, -0.5], normal: [ 0.0,  0.0, -1.0] },
-
-    Vertex { position: [ 0.5, -0.5,  0.5], normal: [ 1.0,  0.0,  0.0] },
-    Vertex { position: [ 0.5, -0.5, -0.5], normal: [ 1.0,  0.0,  0.0] },
-    Vertex { position: [ 0.5,  0.5, -0.5], normal: [ 1.0,  0.0,  0.0] },
-    Vertex { position: [ 0.5, -0.5,  0.5], normal: [ 1.0,  0.0,  0.0] },
-    Vertex { position: [ 0.5,  0.5, -0.5], normal: [ 1.0,  0.0,  0.0] },
-    Vertex { position: [ 0.5,  0.5,  0.5], normal: [ 1.0,  0.0,  0.0] },
-
-    Vertex { position: [-0.5, -0.5, -0.5], normal: [-1.0,  0.0,  0.0] },
-    Vertex { position: [-0.5, -0.5,  0.5], normal: [-1.0,  0.0,  0.0] },
-    Vertex { position: [-0.5,  0.5,  0.5], normal: [-1.0,  0.0,  0.0] },
-    Vertex { position: [-0.5, -0.5, -0.5], normal: [-1.0,  0.0,  0.0] },
-    Vertex { position: [-0.5,  0.5,  0.5], normal: [-1.0,  0.0,  0.0] },
-    Vertex { position: [-0.5,  0.5, -0.5], normal: [-1.0,  0.0,  0.0] },
-
-    Vertex { position: [-0.5,  0.5,  0.5], normal: [ 0.0,  1.0,  0.0] },
-    Vertex { position: [ 0.5,  0.5,  0.5], normal: [ 0.0,  1.0,  0.0] },
-    Vertex { position: [ 0.5,  0.5, -0.5], normal: [ 0.0,  1.0,  0.0] },
-    Vertex { position: [-0.5,  0.5,  0.5], normal: [ 0.0,  1.0,  0.0] },
-    Vertex { position: [ 0.5,  0.5, -0.5], normal: [ 0.0,  1.0,  0.0] },
-    Vertex { position: [-0.5,  0.5, -0.5], normal: [ 0.0,  1.0,  0.0] },
-
-    Vertex { position: [-0.5, -0.5, -0.5], normal: [ 0.0, -1.0,  0.0] },
-    Vertex { position: [ 0.5, -0.5, -0.5], normal: [ 0.0, -1.0,  0.0] },
-    Vertex { position: [ 0.5, -0.5,  0.5], normal: [ 0.0, -1.0,  0.0] },
-    Vertex { position: [-0.5, -0.5, -0.5], normal: [ 0.0, -1.0,  0.0] },
-    Vertex { position: [ 0.5, -0.5,  0.5], normal: [ 0.0, -1.0,  0.0] },
-    Vertex { position: [-0.5, -0.5,  0.5], normal: [ 0.0, -1.0,  0.0] },
+    // front
+    Vertex { position: [-0.5, -0.5, 0.5], normal: [0.0, 0.0, 1.0] },
+    Vertex { position: [ 0.5, -0.5, 0.5], normal: [0.0, 0.0, 1.0] },
+    Vertex { position: [ 0.5,  0.5, 0.5], normal: [0.0, 0.0, 1.0] },
+    Vertex { position: [-0.5, -0.5, 0.5], normal: [0.0, 0.0, 1.0] },
+    Vertex { position: [ 0.5,  0.5, 0.5], normal: [0.0, 0.0, 1.0] },
+    Vertex { position: [-0.5,  0.5, 0.5], normal: [0.0, 0.0, 1.0] },
+    // back
+    Vertex { position: [ 0.5, -0.5, -0.5], normal: [0.0, 0.0, -1.0] },
+    Vertex { position: [-0.5, -0.5, -0.5], normal: [0.0, 0.0, -1.0] },
+    Vertex { position: [-0.5,  0.5, -0.5], normal: [0.0, 0.0, -1.0] },
+    Vertex { position: [ 0.5, -0.5, -0.5], normal: [0.0, 0.0, -1.0] },
+    Vertex { position: [-0.5,  0.5, -0.5], normal: [0.0, 0.0, -1.0] },
+    Vertex { position: [ 0.5,  0.5, -0.5], normal: [0.0, 0.0, -1.0] },
+    // right
+    Vertex { position: [ 0.5, -0.5, 0.5], normal: [1.0, 0.0, 0.0] },
+    Vertex { position: [ 0.5, -0.5, -0.5], normal: [1.0, 0.0, 0.0] },
+    Vertex { position: [ 0.5,  0.5, -0.5], normal: [1.0, 0.0, 0.0] },
+    Vertex { position: [ 0.5, -0.5, 0.5], normal: [1.0, 0.0, 0.0] },
+    Vertex { position: [ 0.5,  0.5, -0.5], normal: [1.0, 0.0, 0.0] },
+    Vertex { position: [ 0.5,  0.5, 0.5], normal: [1.0, 0.0, 0.0] },
+    // left
+    Vertex { position: [-0.5, -0.5, -0.5], normal: [-1.0, 0.0, 0.0] },
+    Vertex { position: [-0.5, -0.5, 0.5], normal: [-1.0, 0.0, 0.0] },
+    Vertex { position: [-0.5,  0.5, 0.5], normal: [-1.0, 0.0, 0.0] },
+    Vertex { position: [-0.5, -0.5, -0.5], normal: [-1.0, 0.0, 0.0] },
+    Vertex { position: [-0.5,  0.5, 0.5], normal: [-1.0, 0.0, 0.0] },
+    Vertex { position: [-0.5,  0.5, -0.5], normal: [-1.0, 0.0, 0.0] },
+    // top
+    Vertex { position: [-0.5, 0.5, 0.5], normal: [0.0, 1.0, 0.0] },
+    Vertex { position: [ 0.5, 0.5, 0.5], normal: [0.0, 1.0, 0.0] },
+    Vertex { position: [ 0.5, 0.5, -0.5], normal: [0.0, 1.0, 0.0] },
+    Vertex { position: [-0.5, 0.5, 0.5], normal: [0.0, 1.0, 0.0] },
+    Vertex { position: [ 0.5, 0.5, -0.5], normal: [0.0, 1.0, 0.0] },
+    Vertex { position: [-0.5, 0.5, -0.5], normal: [0.0, 1.0, 0.0] },
+    // bottom
+    Vertex { position: [-0.5, -0.5, -0.5], normal: [0.0, -1.0, 0.0] },
+    Vertex { position: [ 0.5, -0.5, -0.5], normal: [0.0, -1.0, 0.0] },
+    Vertex { position: [ 0.5, -0.5, 0.5], normal: [0.0, -1.0, 0.0] },
+    Vertex { position: [-0.5, -0.5, -0.5], normal: [0.0, -1.0, 0.0] },
+    Vertex { position: [ 0.5, -0.5, 0.5], normal: [0.0, -1.0, 0.0] },
+    Vertex { position: [-0.5, -0.5, 0.5], normal: [0.0, -1.0, 0.0] },
 ];
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct GridVertex {
     position: [f32; 3],
+    color: [f32; 3],
 }
 
-fn build_grid_vertices() -> Vec<GridVertex> {
+fn build_grid_vertices(center_x: f32, center_z: f32) -> Vec<GridVertex> {
+    let cx = center_x.round() as i32;
+    let cz = center_z.round() as i32;
+    let color = [0.3, 0.3, 0.35];
+    let r = 15i32;
     let mut verts = Vec::new();
-    for i in -5..=5 {
-        let f = i as f32;
-        verts.push(GridVertex { position: [f, -1.0, -5.0] });
-        verts.push(GridVertex { position: [f, -1.0,  5.0] });
-        verts.push(GridVertex { position: [-5.0, -1.0, f] });
-        verts.push(GridVertex { position: [ 5.0, -1.0, f] });
+    for i in (cx - r)..=(cx + r) {
+        verts.push(GridVertex { position: [i as f32, -1.0, (cz - r) as f32], color });
+        verts.push(GridVertex { position: [i as f32, -1.0, (cz + r) as f32], color });
+    }
+    for i in (cz - r)..=(cz + r) {
+        verts.push(GridVertex { position: [(cx - r) as f32, -1.0, i as f32], color });
+        verts.push(GridVertex { position: [(cx + r) as f32, -1.0, i as f32], color });
     }
     verts
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Copy, Clone, Debug)]
 pub struct CameraUniform {
     pub view_proj: [[f32; 4]; 4],
     pub camera_pos: [f32; 4],
 }
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct ModelUniform {
-    model: [[f32; 4]; 4],
-}
+unsafe impl bytemuck::Pod for CameraUniform {}
+unsafe impl bytemuck::Zeroable for CameraUniform {}
 
 #[derive(Debug)]
 pub struct GpuRenderer<S: FrameSink = crate::core::present::CpuBufferSink> {
@@ -99,10 +106,14 @@ pub struct GpuRenderer<S: FrameSink = crate::core::present::CpuBufferSink> {
     num_vertices: u32,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
-    model_bind_group_layout: wgpu::BindGroupLayout,
+    models_storage_buffer: wgpu::Buffer,
+    models_bind_group: wgpu::BindGroup,
+    models_bind_group_layout: wgpu::BindGroupLayout,
     grid_pipeline: wgpu::RenderPipeline,
-    grid_vertex_buffer: wgpu::Buffer,
-    grid_num_vertices: u32,
+    grid_buffer: wgpu::Buffer,
+    grid_buffer_capacity: u32,
+    gizmo_buffer: wgpu::Buffer,
+    gizmo_buffer_capacity: u32,
     render_texture: wgpu::Texture,
     render_texture_view: wgpu::TextureView,
     depth_texture: wgpu::Texture,
@@ -165,16 +176,16 @@ impl<S: FrameSink> GpuRenderer<S> {
                 }],
             });
 
-        let model_bg_layout =
+        let models_bg_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("model bgl"),
+                label: Some("models bgl"),
                 entries: &[wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStages::VERTEX,
                     ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: false,
-                        min_binding_size: std::num::NonZeroU64::new(64),
+                        min_binding_size: std::num::NonZeroU64::new((MAX_INSTANCES as u64) * 64),
                     },
                     count: None,
                 }],
@@ -182,7 +193,7 @@ impl<S: FrameSink> GpuRenderer<S> {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("pipeline layout"),
-            bind_group_layouts: &[Some(&camera_bg_layout), Some(&model_bg_layout)],
+            bind_group_layouts: &[Some(&camera_bg_layout), Some(&models_bg_layout)],
             immediate_size: 0,
         });
 
@@ -197,8 +208,8 @@ impl<S: FrameSink> GpuRenderer<S> {
                     array_stride: std::mem::size_of::<Vertex>() as u64,
                     step_mode: wgpu::VertexStepMode::Vertex,
                     attributes: &wgpu::vertex_attr_array![
-                        0 => Float32x3,  // position
-                        1 => Float32x3   // normal
+                        0 => Float32x3,
+                        1 => Float32x3
                     ],
                 })],
             },
@@ -233,7 +244,7 @@ impl<S: FrameSink> GpuRenderer<S> {
             cache: None,
         });
 
-        // --- grid pipeline: no model BGL, uses camera BGL only, LineList ---
+        // --- grid pipeline ---
         let grid_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("grid pipeline layout"),
             bind_group_layouts: &[Some(&camera_bg_layout)],
@@ -251,7 +262,8 @@ impl<S: FrameSink> GpuRenderer<S> {
                     array_stride: std::mem::size_of::<GridVertex>() as u64,
                     step_mode: wgpu::VertexStepMode::Vertex,
                     attributes: &wgpu::vertex_attr_array![
-                        0 => Float32x3
+                        0 => Float32x3,
+                        1 => Float32x3
                     ],
                 })],
             },
@@ -293,14 +305,6 @@ impl<S: FrameSink> GpuRenderer<S> {
         });
         let num_vertices = CUBE_VERTICES.len() as u32;
 
-        let grid_vertices = build_grid_vertices();
-        let grid_num_vertices = grid_vertices.len() as u32;
-        let grid_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("grid vertices"),
-            contents: bytemuck::cast_slice(&grid_vertices),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
         let camera_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("camera uniform"),
             size: std::mem::size_of::<CameraUniform>() as u64,
@@ -315,6 +319,36 @@ impl<S: FrameSink> GpuRenderer<S> {
                 binding: 0,
                 resource: camera_buffer.as_entire_binding(),
             }],
+        });
+
+        let models_storage_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("models storage"),
+            size: (MAX_INSTANCES as u64) * 64,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let models_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("models bg"),
+            layout: &models_bg_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: models_storage_buffer.as_entire_binding(),
+            }],
+        });
+
+        let grid_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("grid staging"),
+            size: (MAX_GRID_VERTS as u64) * GRID_VERTEX_SIZE,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let gizmo_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("gizmo staging"),
+            size: (MAX_GIZMO_VERTS as u64) * GRID_VERTEX_SIZE,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         });
 
         let render_texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -351,10 +385,14 @@ impl<S: FrameSink> GpuRenderer<S> {
             num_vertices,
             camera_buffer,
             camera_bind_group,
-            model_bind_group_layout: model_bg_layout,
+            models_storage_buffer,
+            models_bind_group,
+            models_bind_group_layout: models_bg_layout,
             grid_pipeline,
-            grid_vertex_buffer,
-            grid_num_vertices,
+            grid_buffer,
+            grid_buffer_capacity: MAX_GRID_VERTS,
+            gizmo_buffer,
+            gizmo_buffer_capacity: MAX_GIZMO_VERTS,
             render_texture,
             render_texture_view,
             depth_texture,
@@ -393,11 +431,13 @@ impl<S: FrameSink> GpuRenderer<S> {
         &mut self,
         view_proj: &glam::Mat4,
         eye: &glam::Vec3,
-        node_transforms: &[Transform],
+        model_matrices: &[[[f32; 4]; 4]],
         gizmo_lines: &[([f32; 3], [f32; 3])],
         gizmo_colors: &[[f32; 3]; 3],
         width: u32,
         height: u32,
+        player_x: f32,
+        player_z: f32,
     ) -> Vec<u8> {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
@@ -417,6 +457,39 @@ impl<S: FrameSink> GpuRenderer<S> {
                 camera_pos: [eye.x, eye.y, eye.z, 1.0],
             }),
         );
+
+        let num_instances = model_matrices.len().min(MAX_INSTANCES as usize) as u32;
+
+        if num_instances > 0 {
+            self.queue.write_buffer(
+                &self.models_storage_buffer,
+                0,
+                bytemuck::cast_slice(model_matrices),
+            );
+        }
+
+        let gizmo_vert_count = (gizmo_lines.len() * 2) as u32;
+
+        if gizmo_vert_count > 0 {
+            let verts: Vec<GridVertex> = gizmo_lines
+                .iter()
+                .enumerate()
+                .flat_map(|(i, (a, b))| {
+                    let col = gizmo_colors[i % 3];
+                    vec![
+                        GridVertex { position: *a, color: col },
+                        GridVertex { position: *b, color: col },
+                    ]
+                })
+                .collect();
+            if verts.len() <= self.gizmo_buffer_capacity as usize {
+                self.queue.write_buffer(&self.gizmo_buffer, 0, bytemuck::cast_slice(&verts));
+            }
+        }
+
+        let grid_verts = build_grid_vertices(player_x, player_z);
+        let grid_vcount = grid_verts.len().min(self.grid_buffer_capacity as usize) as u32;
+        self.queue.write_buffer(&self.grid_buffer, 0, bytemuck::cast_slice(&grid_verts[..grid_vcount as usize]));
 
         let mut encoder = self.device.create_command_encoder(&Default::default());
         {
@@ -446,59 +519,25 @@ impl<S: FrameSink> GpuRenderer<S> {
                 multiview_mask: None,
             });
 
-            // draw ground grid
+            // draw ground grid (dynamic, follows player)
             rpass.set_pipeline(&self.grid_pipeline);
             rpass.set_bind_group(0, &self.camera_bind_group, &[]);
-            rpass.set_vertex_buffer(0, self.grid_vertex_buffer.slice(..));
-            rpass.draw(0..self.grid_num_vertices, 0..1);
+            rpass.set_vertex_buffer(0, self.grid_buffer.slice(..));
+            rpass.draw(0..grid_vcount, 0..1);
 
-            // draw gizmo arrows if any
-            if !gizmo_lines.is_empty() {
-                let gizmo_verts: Vec<GridVertex> = gizmo_lines
-                    .iter()
-                    .flat_map(|(a, b)| {
-                        vec![
-                            GridVertex { position: *a },
-                            GridVertex { position: *b },
-                        ]
-                    })
-                    .collect();
-
-                let gizmo_buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("gizmo buf"),
-                    contents: bytemuck::cast_slice(&gizmo_verts),
-                    usage: wgpu::BufferUsages::VERTEX,
-                });
-                rpass.set_vertex_buffer(0, gizmo_buf.slice(..));
-                for _i in 0..gizmo_lines.len() {
-                    rpass.draw((_i * 2) as u32..(_i * 2 + 2) as u32, 0..1);
-                }
+            // draw gizmo arrows with colors
+            if gizmo_vert_count > 0 {
+                rpass.set_vertex_buffer(0, self.gizmo_buffer.slice(..));
+                rpass.draw(0..gizmo_vert_count, 0..1);
             }
 
-            // draw cubes
-            rpass.set_pipeline(&self.render_pipeline);
-            rpass.set_bind_group(0, &self.camera_bind_group, &[]);
-            rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-
-            for transform in node_transforms {
-                let model = build_model_matrix(transform);
-                let model_buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("model uniform"),
-                    contents: bytemuck::bytes_of(&ModelUniform {
-                        model: model.to_cols_array_2d(),
-                    }),
-                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                });
-                let model_bg = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("model bg"),
-                    layout: &self.model_bind_group_layout,
-                    entries: &[wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: model_buf.as_entire_binding(),
-                    }],
-                });
-                rpass.set_bind_group(1, &model_bg, &[]);
-                rpass.draw(0..self.num_vertices, 0..1);
+            // draw all cubes in one instanced call
+            if num_instances > 0 {
+                rpass.set_pipeline(&self.render_pipeline);
+                rpass.set_bind_group(0, &self.camera_bind_group, &[]);
+                rpass.set_bind_group(1, &self.models_bind_group, &[]);
+                rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                rpass.draw(0..self.num_vertices, 0..num_instances);
             }
         }
         self.queue.submit(Some(encoder.finish()));
@@ -534,7 +573,7 @@ pub fn build_view_proj_matrix(scene: &crate::core::scene::Scene3D, width: u32, h
     build_view_projection_for_scene(scene, width, height).0
 }
 
-fn build_model_matrix(t: &Transform) -> glam::Mat4 {
+pub fn build_model_matrix(t: &Transform) -> glam::Mat4 {
     let translation = glam::Vec3::new(t.position.x, t.position.y, t.position.z);
     let scale = glam::Vec3::new(t.scale.x, t.scale.y, t.scale.z);
     let rotation = glam::Quat::from_euler(
@@ -544,4 +583,11 @@ fn build_model_matrix(t: &Transform) -> glam::Mat4 {
         t.rotation.z,
     );
     glam::Mat4::from_scale_rotation_translation(scale, rotation, translation)
+}
+
+pub fn build_model_matrices(transforms: &[Transform]) -> Vec<[[f32; 4]; 4]> {
+    transforms
+        .iter()
+        .map(|t| build_model_matrix(t).to_cols_array_2d())
+        .collect()
 }

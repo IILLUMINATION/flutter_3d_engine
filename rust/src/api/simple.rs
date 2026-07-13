@@ -30,54 +30,31 @@ pub fn init_default_camera(scene: &mut Scene3D) {
 
 #[flutter_rust_bridge::frb(sync)]
 pub fn orbit_camera(scene: &mut Scene3D, dx: f32, dy: f32) {
-    scene.camera_theta -= dx * 0.005;
-    scene.camera_phi += dy * 0.005;
-    scene.camera_phi = scene.camera_phi.clamp(-1.4, 1.4);
-    scene.update_camera_from_spherical();
+    scene.orbit_camera(dx, dy);
 }
 
 #[flutter_rust_bridge::frb(sync)]
 pub fn zoom_camera(scene: &mut Scene3D, delta: f32) {
-    scene.camera_radius -= delta * 0.005;
-    scene.camera_radius = scene.camera_radius.clamp(1.5, 20.0);
-    scene.update_camera_from_spherical();
+    scene.zoom_camera(delta);
 }
 
 #[flutter_rust_bridge::frb(sync)]
-pub fn handle_pointer_down(
-    scene: &mut Scene3D,
-    screen_x: f32,
-    screen_y: f32,
-    screen_width: f32,
-    screen_height: f32,
-) -> bool {
-    scene.handle_pointer_down(screen_x, screen_y, screen_width, screen_height)
+pub fn move_player(scene: &mut Scene3D, dx: f32, dz: f32) {
+    scene.move_player(dx, dz);
 }
 
 #[flutter_rust_bridge::frb(sync)]
-pub fn handle_pointer_move(
-    scene: &mut Scene3D,
-    screen_x: f32,
-    screen_y: f32,
-    screen_width: f32,
-    screen_height: f32,
-) {
-    scene.handle_pointer_move(screen_x, screen_y, screen_width, screen_height);
+pub fn jump_player(scene: &mut Scene3D) {
+    scene.jump_player();
 }
 
 #[flutter_rust_bridge::frb(sync)]
-pub fn handle_pointer_up(scene: &mut Scene3D) {
-    scene.handle_pointer_up();
+pub fn spawn_cube_in_front(scene: &mut Scene3D) -> u64 {
+    scene.spawn_cube_in_front()
 }
 
 pub fn render_scene(scene: &mut Scene3D, width: u32, height: u32) -> Vec<u8> {
     scene.render_gpu(width, height)
-}
-
-#[flutter_rust_bridge::frb(sync)]
-pub fn update_camera(scene: &mut Scene3D, px: f32, py: f32, pz: f32, tx: f32, ty: f32, tz: f32) {
-    scene.camera.position = crate::core::math::Vector3::new(px, py, pz);
-    scene.camera.target = crate::core::math::Vector3::new(tx, ty, tz);
 }
 
 #[flutter_rust_bridge::frb(sync)]
@@ -97,14 +74,6 @@ pub fn get_camera_target(scene: &Scene3D) -> (f32, f32, f32) {
 
 pub fn get_camera_fov(scene: &Scene3D) -> f32 {
     scene.camera.fov
-}
-
-pub fn set_camera_position(scene: &mut Scene3D, x: f32, y: f32, z: f32) {
-    scene.camera.position = crate::core::math::Vector3::new(x, y, z);
-}
-
-pub fn set_camera_target(scene: &mut Scene3D, x: f32, y: f32, z: f32) {
-    scene.camera.target = crate::core::math::Vector3::new(x, y, z);
 }
 
 pub fn set_camera_fov(scene: &mut Scene3D, fov: f32) {

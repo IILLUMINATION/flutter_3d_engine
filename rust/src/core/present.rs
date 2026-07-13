@@ -35,7 +35,7 @@ impl CpuBufferSink {
         }
     }
 
-    fn ensure_buffer(&mut self, device: &wgpu::Device) {
+    fn ensure_buffer(&mut self, device: &wgpu::Device) -> bool {
         if self.output_buffer.is_none() {
             self.output_buffer = Some(device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some("cpu sink buffer"),
@@ -44,6 +44,7 @@ impl CpuBufferSink {
                 mapped_at_creation: false,
             }));
         }
+        self.output_buffer.is_some()
     }
 }
 
@@ -54,7 +55,9 @@ impl FrameSink for CpuBufferSink {
         queue: &wgpu::Queue,
         frame: &wgpu::Texture,
     ) -> Vec<u8> {
-        self.ensure_buffer(device);
+        if !self.ensure_buffer(device) {
+            return vec![0u8; (self.width as usize) * (self.height as usize) * 4];
+        }
         let buffer = self.output_buffer.as_ref().unwrap();
 
         let mut encoder = device.create_command_encoder(&Default::default());
@@ -93,13 +96,16 @@ impl FrameSink for CpuBufferSink {
             })
             .ok();
 
-        rx.recv()
-            .unwrap()
-            .expect("Failed to map output buffer in CpuBufferSink");
+        let Ok(inner) = rx.recv() else {
+            return vec![0u8; (self.width as usize) * (self.height as usize) * 4];
+        };
+        let Ok(()) = inner else {
+            return vec![0u8; (self.width as usize) * (self.height as usize) * 4];
+        };
 
-        let data = buffer_slice
-            .get_mapped_range()
-            .expect("Failed to get mapped range");
+        let Ok(data) = buffer_slice.get_mapped_range() else {
+            return vec![0u8; (self.width as usize) * (self.height as usize) * 4];
+        };
         let unpadded = self.width as usize * 4;
         let mut out = Vec::with_capacity((self.width as usize) * (self.height as usize) * 4);
 

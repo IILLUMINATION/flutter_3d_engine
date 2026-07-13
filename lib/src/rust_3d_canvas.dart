@@ -57,7 +57,7 @@ class _Rust3DCanvasState extends State<Rust3DCanvas>
       height: widget.height,
     );
 
-    final controller = Rust3DController.wrap(scene);
+    final controller = Rust3DController.wrap(scene, textureId: textureId);
     setState(() {
       _scene = scene;
       _textureId = textureId;
@@ -83,11 +83,15 @@ class _Rust3DCanvasState extends State<Rust3DCanvas>
       widget.onTick?.call(ctrl, elapsedSec, deltaSec);
     }
 
-    renderNativeFrame(
-      scene: scene,
-      width: widget.width,
-      height: widget.height,
-    );
+    final w = widget.width;
+    final h = widget.height;
+    if (w > 0 && h > 0) {
+      renderNativeFrame(
+        scene: scene,
+        width: w,
+        height: h,
+      );
+    }
   }
 
   @override

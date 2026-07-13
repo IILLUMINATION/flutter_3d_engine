@@ -3,11 +3,14 @@ import 'package:flutter_rust_3d/src/rust/core/scene.dart';
 
 class Rust3DController {
   final Scene3D _scene;
+  int _textureId = 0;
 
-  Rust3DController._(this._scene);
-  static Rust3DController wrap(Scene3D scene) => Rust3DController._(scene);
+  Rust3DController._(this._scene, this._textureId);
+  static Rust3DController wrap(Scene3D scene, {int textureId = 0}) =>
+      Rust3DController._(scene, textureId);
 
   Scene3D get scene => _scene;
+  int get textureId => _textureId;
 
   Future<BigInt> addCube({
     double x = 0, double y = 0, double z = 0,
@@ -22,11 +25,10 @@ class Rust3DController {
 
   void zoomCamera(double delta) => ffi.zoomCamera(scene: _scene, delta: delta);
 
-  bool handlePointerDown(double sx, double sy, double sw, double sh) =>
-      ffi.handlePointerDown(scene: _scene, screenX: sx, screenY: sy, screenWidth: sw, screenHeight: sh);
+  void movePlayer({double dx = 0, double dz = 0}) =>
+      ffi.movePlayer(scene: _scene, dx: dx, dz: dz);
 
-  void handlePointerMove(double sx, double sy, double sw, double sh) =>
-      ffi.handlePointerMove(scene: _scene, screenX: sx, screenY: sy, screenWidth: sw, screenHeight: sh);
+  void jumpPlayer() => ffi.jumpPlayer(scene: _scene);
 
-  void handlePointerUp() => ffi.handlePointerUp(scene: _scene);
+  BigInt spawnCubeInFront() => ffi.spawnCubeInFront(scene: _scene);
 }

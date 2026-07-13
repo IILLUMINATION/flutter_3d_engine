@@ -213,8 +213,10 @@ mod tests {
 
     #[test]
     fn project_point_in_front_returns_some() {
-        let camera = Camera::default();
-        let point = Vector3::new(0.0, 0.0, 0.0); // where camera looks
+        let mut camera = Camera::default();
+        camera.target = Vector3::new(0.0, 0.0, 0.0);
+        camera.position = Vector3::new(0.0, 2.0, 5.0);
+        let point = Vector3::new(0.0, 0.0, 0.0);
         let result = project_point(&point, &camera, 64, 48);
         assert!(result.is_some());
     }

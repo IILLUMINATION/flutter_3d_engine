@@ -48,9 +48,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  bool dco_decode_bool(dynamic raw);
-
-  @protected
   double dco_decode_f_32(dynamic raw);
 
   @protected
@@ -102,9 +99,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer);
-
-  @protected
   double sse_decode_f_32(SseDeserializer deserializer);
 
   @protected
@@ -137,6 +131,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
+  bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
   void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
     Scene3D self,
@@ -163,9 +160,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     Scene3D self,
     SseSerializer serializer,
   );
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer);
 
   @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
@@ -202,6 +196,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer);
 }
 
 // Section: wire_class

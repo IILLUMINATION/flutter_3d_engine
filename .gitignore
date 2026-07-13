@@ -53,3 +53,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Review bundle
+review_bundle.txt
+/tmp/merge_review.py

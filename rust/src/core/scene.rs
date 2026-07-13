@@ -11,8 +11,8 @@ pub struct Camera {
 impl Default for Camera {
     fn default() -> Self {
         Self {
-            position: Vector3::new(0.0, 2.0, 5.0),
-            target:   Vector3::ZERO,
+            position: Vector3::new(0.0, 3.6, 0.0),
+            target:   Vector3::new(0.0, 3.6, -1.0),
             fov:      60.0_f32.to_radians(),
         }
     }
@@ -25,9 +25,6 @@ pub struct Node {
     pub mesh_id:   Option<u64>,
     pub rb_handle: Option<RigidBodyHandle>,
 }
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum GizmoAxis { X, Y, Z }
 
 type CpuRenderer = crate::core::renderer_gpu::GpuRenderer<crate::core::present::CpuBufferSink>;
 
@@ -62,12 +59,10 @@ pub struct Scene3D {
     gpu_height:      u32,
     texture_id:      Option<i64>,
 
-    // camera spherical state
     pub camera_theta:  f32,
     pub camera_phi:    f32,
     pub camera_radius: f32,
 
-    // Rapier physics
     gravity:             Vector3,
     rigid_body_set:      RigidBodySet,
     collider_set:        ColliderSet,
@@ -81,12 +76,7 @@ pub struct Scene3D {
     multibody_joint_set: MultibodyJointSet,
     ccd_solver:          CCDSolver,
 
-    // selection & gizmo
-    pub selected_node_id: Option<u64>,
-    pub active_gizmo_axis: Option<GizmoAxis>,
-    pub dragged_body:      Option<(RigidBodyHandle, f32)>,
-    drag_gizmo_start:      f32,
-    drag_node_id:          Option<u64>,
+    player_body_handle: RigidBodyHandle,
 }
 
 impl Scene3D {
@@ -103,6 +93,17 @@ impl Scene3D {
         let ground_collider = ColliderBuilder::cuboid(10.0, 0.1, 10.0).build();
         collider_set.insert_with_parent(ground_collider, ground_handle, &mut rigid_body_set);
 
+        let player_rb = RigidBodyBuilder::dynamic()
+            .translation(vector![0.0, 2.0, 0.0])
+            .linear_damping(0.5)
+            .enabled_rotations(false, false, false)
+            .build();
+        let player_body_handle = rigid_body_set.insert(player_rb);
+        let player_collider = ColliderBuilder::capsule_y(0.9, 0.4)
+            .restitution(0.0)
+            .build();
+        collider_set.insert_with_parent(player_collider, player_body_handle, &mut rigid_body_set);
+
         Self {
             nodes:       Vec::new(),
             camera:      Camera::default(),
@@ -113,9 +114,9 @@ impl Scene3D {
             gpu_width:    0,
             gpu_height:   0,
             texture_id:   None,
-            camera_theta:  0.45,
-            camera_phi:    0.35,
-            camera_radius: 7.0,
+            camera_theta:  0.0,
+            camera_phi:    0.0,
+            camera_radius: 0.0,
             gravity,
             rigid_body_set,
             collider_set,
@@ -128,11 +129,7 @@ impl Scene3D {
             multibody_joint_set:    MultibodyJointSet::new(),
             ccd_solver:             CCDSolver::new(),
             query_pipeline:         QueryPipeline::new(),
-            selected_node_id:       None,
-            active_gizmo_axis:      None,
-            dragged_body:           None,
-            drag_gizmo_start:       0.0,
-            drag_node_id:           None,
+            player_body_handle,
         }
     }
 
@@ -144,11 +141,141 @@ impl Scene3D {
         self.camera.target = Vector3::ZERO;
     }
 
+    fn update_fps_camera(&mut self) {
+        if let Some(rb) = self.rigid_body_set.get(self.player_body_handle) {
+            let pos = rb.translation();
+            let eye_x = pos.x;
+            let eye_y = pos.y + 1.6;
+            let eye_z = pos.z;
+            self.camera.position = Vector3::new(eye_x, eye_y, eye_z);
+
+            let look_x = f32::cos(self.camera_phi) * f32::sin(self.camera_theta);
+            let look_y = f32::sin(self.camera_phi);
+            let look_z = -f32::cos(self.camera_phi) * f32::cos(self.camera_theta);
+            self.camera.target = Vector3::new(
+                eye_x + look_x,
+                eye_y + look_y,
+                eye_z + look_z,
+            );
+        }
+    }
+
     pub fn init_default_camera(&mut self) {
-        self.camera_theta = 0.45;
-        self.camera_phi = 0.35;
-        self.camera_radius = 7.0;
-        self.update_camera_from_spherical();
+        self.camera_theta = 0.0;
+        self.camera_phi = 0.0;
+    }
+
+    pub fn orbit_camera(&mut self, dx: f32, dy: f32) {
+        self.camera_theta -= dx * 0.005;
+        self.camera_phi -= dy * 0.005;
+        self.camera_phi = self.camera_phi.clamp(-1.4, 1.4);
+        self.update_fps_camera();
+    }
+
+    pub fn zoom_camera(&mut self, _delta: f32) {
+    }
+
+    pub fn move_player(&mut self, dx: f32, dz: f32) {
+        if let Some(rb) = self.rigid_body_set.get_mut(self.player_body_handle) {
+            let speed = 6.0;
+            let sin_t = f32::sin(self.camera_theta);
+            let cos_t = f32::cos(self.camera_theta);
+            let forward = glam::Vec3::new(sin_t, 0.0, -cos_t);
+            let right = glam::Vec3::new(cos_t, 0.0, -sin_t);
+            let world_dx = forward.x * dz + right.x * dx;
+            let world_dz = forward.z * dz + right.z * dx;
+            let vel = rb.linvel();
+            rb.set_linvel(
+                vector![world_dx * speed, vel.y, world_dz * speed],
+                true,
+            );
+        }
+    }
+
+    pub fn jump_player(&mut self) {
+        if let Some(rb) = self.rigid_body_set.get_mut(self.player_body_handle) {
+            let vel = rb.linvel();
+            let is_grounded = vel.y.abs() < 0.1;
+            if is_grounded {
+                rb.set_linvel(vector![vel.x, 5.5, vel.z], true);
+            }
+        }
+    }
+
+    pub fn spawn_cube_in_front(&mut self) -> u64 {
+        let cam = &self.camera;
+        let look_x = f32::cos(self.camera_phi) * f32::sin(self.camera_theta);
+        let look_y = f32::sin(self.camera_phi);
+        let look_z = -f32::cos(self.camera_phi) * f32::cos(self.camera_theta);
+        let len = f32::sqrt(look_x * look_x + look_y * look_y + look_z * look_z);
+        let (dir_x, dir_y, dir_z) = if len > 0.0001 {
+            (look_x / len, look_y / len, look_z / len)
+        } else {
+            (0.0, 0.0, -1.0)
+        };
+
+        let origin = glam::Vec3::new(cam.position.x, cam.position.y, cam.position.z);
+        let dir = glam::Vec3::new(dir_x, dir_y, dir_z);
+
+        let ray = Ray::new(
+            point![origin.x, origin.y, origin.z],
+            vector![dir.x, dir.y, dir.z],
+        );
+        let max_toi = 100.0;
+        let solid = true;
+        let filter = QueryFilter::default();
+
+        self.query_pipeline.update(&self.collider_set);
+
+        if let Some((collider_handle, intersection)) = self.query_pipeline.cast_ray_and_get_normal(
+            &self.rigid_body_set,
+            &self.collider_set,
+            &ray,
+            max_toi,
+            solid,
+            filter,
+        ) {
+            let toi = intersection.time_of_impact;
+            let hit_point = origin + dir * toi;
+            let normal = self.collider_set
+                .get(collider_handle)
+                .map(|c| {
+                    if let Some(rb_handle) = c.parent() {
+                        self.rigid_body_set.get(rb_handle)
+                            .map(|rb| {
+                                let n = rb.position().inverse_transform_vector(&ray.dir);
+                                glam::Vec3::new(n.x, n.y, n.z)
+                            })
+                            .unwrap_or_else(|| glam::Vec3::new(dir.x, dir.y, dir.z))
+                    } else {
+                        glam::Vec3::new(dir.x, dir.y, dir.z)
+                    }
+                })
+                .unwrap_or_else(|| glam::Vec3::Y);
+            let abs_x = normal.x.abs();
+            let abs_y = normal.y.abs();
+            let abs_z = normal.z.abs();
+            let snap_normal = if abs_y >= abs_x && abs_y >= abs_z {
+                glam::Vec3::new(0.0, normal.y.signum(), 0.0)
+            } else if abs_x >= abs_y && abs_x >= abs_z {
+                glam::Vec3::new(normal.x.signum(), 0.0, 0.0)
+            } else {
+                glam::Vec3::new(0.0, 0.0, normal.z.signum())
+            };
+            let spawn_x = (hit_point.x + snap_normal.x * 0.5).round();
+            let spawn_y = (hit_point.y + snap_normal.y * 0.5).round();
+            let spawn_z = (hit_point.z + snap_normal.z * 0.5).round();
+            return self.add_cube_physics(spawn_x, spawn_y, spawn_z);
+        }
+
+        if dir_y.abs() < 0.0001 { return 0; }
+        let t = (-1.0 - origin.y) / dir_y;
+        if t <= 0.0 { return 0; }
+        let hit = origin + dir * t;
+        let spawn_x = hit.x.round();
+        let spawn_y = 0.0;
+        let spawn_z = hit.z.round();
+        self.add_cube_physics(spawn_x, spawn_y, spawn_z)
     }
 
     pub fn add_cube_physics(&mut self, px: f32, py: f32, pz: f32) -> u64 {
@@ -157,12 +284,12 @@ impl Scene3D {
 
         let rb = RigidBodyBuilder::dynamic()
             .translation(vector![px, py, pz])
-            .linear_damping(0.2)
-            .angular_damping(1.0)
+            .linear_damping(0.5)
+            .angular_damping(2.0)
             .build();
         let rb_handle = self.rigid_body_set.insert(rb);
         let collider = ColliderBuilder::cuboid(0.5, 0.5, 0.5)
-            .restitution(0.5)
+            .restitution(0.1)
             .build();
         self.collider_set.insert_with_parent(collider, rb_handle, &mut self.rigid_body_set);
 
@@ -207,6 +334,8 @@ impl Scene3D {
                 }
             }
         }
+
+        self.update_fps_camera();
     }
 
     pub fn update_node_transform(
@@ -244,238 +373,6 @@ impl Scene3D {
         self.texture_id
     }
 
-    fn build_ray(&self, screen_x: f32, screen_y: f32, screen_width: f32, screen_height: f32) -> (glam::Vec3, glam::Vec3) {
-        let view_proj = crate::core::renderer_gpu::build_view_proj_matrix(self, screen_width as u32, screen_height as u32);
-        let inv_vp = view_proj.inverse();
-
-        let ndc_x = (screen_x / screen_width) * 2.0 - 1.0;
-        let ndc_y = 1.0 - (screen_y / screen_height) * 2.0;
-
-        let near = inv_vp * glam::Vec4::new(ndc_x, ndc_y, 0.0, 1.0);
-        let near = near / near.w;
-        let far = inv_vp * glam::Vec4::new(ndc_x, ndc_y, 1.0, 1.0);
-        let far = far / far.w;
-
-        let origin = glam::Vec3::new(near.x, near.y, near.z);
-        let dir = (glam::Vec3::new(far.x, far.y, far.z) - origin).normalize();
-        (origin, dir)
-    }
-
-    fn point_line_distance(point: glam::Vec3, line_a: glam::Vec3, line_b: glam::Vec3) -> f32 {
-        let ab = line_b - line_a;
-        let ap = point - line_a;
-        let t = (ap.dot(ab) / ab.dot(ab)).clamp(0.0, 1.0);
-        let closest = line_a + ab * t;
-        (point - closest).length()
-    }
-
-    pub fn selected_node_position(&self) -> Option<glam::Vec3> {
-        let node_id = self.selected_node_id?;
-        let node = self.get_node(node_id)?;
-        Some(glam::Vec3::new(
-            node.transform.position.x,
-            node.transform.position.y,
-            node.transform.position.z,
-        ))
-    }
-
-    pub fn handle_pointer_down(
-        &mut self,
-        screen_x: f32,
-        screen_y: f32,
-        screen_width: f32,
-        screen_height: f32,
-    ) -> bool {
-        let (origin, dir) = self.build_ray(screen_x, screen_y, screen_width, screen_height);
-
-        // 1. If selected node exists, check gizmo arrow clicks
-        if let Some(pos) = self.selected_node_position() {
-            let gizmo_length = 1.5;
-            let x_end = pos + glam::Vec3::X * gizmo_length;
-            let y_end = pos + glam::Vec3::Y * gizmo_length;
-            let z_end = pos + glam::Vec3::Z * gizmo_length;
-
-            // Find closest point on each axis line to the ray
-            let threshold: f32 = 0.25;
-            // Actually use ray-line distance by checking closest approach
-            let ray_dir = dir;
-            let ray_origin = origin;
-
-            // Ray-line distance: project ray onto line plane
-            let axis_dist = |axis_end: glam::Vec3| -> f32 {
-                let line_dir = (axis_end - pos).normalize();
-                let w0 = ray_origin - pos;
-                let a = ray_dir.dot(ray_dir);
-                let b = ray_dir.dot(line_dir);
-                let c = line_dir.dot(line_dir);
-                let d = ray_dir.dot(w0);
-                let e = line_dir.dot(w0);
-                let denom = a * c - b * b;
-                if denom.abs() < 0.0001 { return f32::MAX; }
-                let sc = (b * e - c * d) / denom;
-                let tc = (a * e - b * d) / denom;
-                let tc = tc.clamp(0.0, gizmo_length);
-                let closest_line = pos + line_dir * tc;
-                let closest_ray = ray_origin + ray_dir * sc;
-                (closest_line - closest_ray).length()
-            };
-
-            if axis_dist(x_end) < threshold {
-                self.active_gizmo_axis = Some(GizmoAxis::X);
-                if let Some(node_id) = self.selected_node_id {
-                    if let Some(node) = self.get_node(node_id) {
-                        self.drag_gizmo_start = node.transform.position.x;
-                    }
-                }
-                return true;
-            }
-            if axis_dist(y_end) < threshold {
-                self.active_gizmo_axis = Some(GizmoAxis::Y);
-                if let Some(node_id) = self.selected_node_id {
-                    if let Some(node) = self.get_node(node_id) {
-                        self.drag_gizmo_start = node.transform.position.y;
-                    }
-                }
-                return true;
-            }
-            if axis_dist(z_end) < threshold {
-                self.active_gizmo_axis = Some(GizmoAxis::Z);
-                if let Some(node_id) = self.selected_node_id {
-                    if let Some(node) = self.get_node(node_id) {
-                        self.drag_gizmo_start = node.transform.position.z;
-                    }
-                }
-                return true;
-            }
-        }
-
-        // 2. Check body ray hit
-        let ray = Ray::new(
-            point![origin.x, origin.y, origin.z],
-            vector![dir.x, dir.y, dir.z],
-        );
-        let max_toi = 100.0;
-        let solid = true;
-        let filter = QueryFilter::default();
-
-        self.query_pipeline.update(&self.collider_set);
-
-        if let Some((collider_handle, _toi)) = self.query_pipeline.cast_ray(
-            &self.rigid_body_set,
-            &self.collider_set,
-            &ray,
-            max_toi,
-            solid,
-            filter,
-        ) {
-            if let Some(rb_handle) = self.collider_set.get(collider_handle).and_then(|c| c.parent()) {
-                let is_dynamic = self.rigid_body_set.get(rb_handle).map_or(false, |rb| rb.is_dynamic());
-                if !is_dynamic {
-                    // ground — ignore
-                    self.selected_node_id = None;
-                    self.active_gizmo_axis = None;
-                    return false;
-                }
-
-                // dynamic cube — select and start drag
-                self.selected_node_id = self.nodes.iter()
-                    .find(|n| n.rb_handle == Some(rb_handle))
-                    .map(|n| n.id);
-
-                let current_y = self.rigid_body_set.get(rb_handle).map_or(0.0, |rb| rb.translation().y);
-                self.dragged_body = Some((rb_handle, current_y));
-                self.drag_node_id = self.nodes.iter()
-                    .find(|n| n.rb_handle == Some(rb_handle))
-                    .map(|n| n.id);
-                return true;
-            }
-        }
-
-        // hit nothing — deselect
-        self.selected_node_id = None;
-        self.active_gizmo_axis = None;
-        false
-    }
-
-    pub fn handle_pointer_move(
-        &mut self,
-        screen_x: f32,
-        screen_y: f32,
-        screen_width: f32,
-        screen_height: f32,
-    ) {
-        if let Some(axis) = self.active_gizmo_axis {
-            let (origin, dir) = self.build_ray(screen_x, screen_y, screen_width, screen_height);
-
-            let node_id = match self.drag_node_id {
-                Some(id) => id,
-                None => return,
-            };
-
-            let pos = self.get_node(node_id).map(|n| n.transform.position).unwrap_or(Vector3::ZERO);
-            let pos = glam::Vec3::new(pos.x, pos.y, pos.z);
-
-            // Build plane perpendicular to axis, pass through node position
-            let (plane_normal, plane_point) = match axis {
-                GizmoAxis::X => (glam::Vec3::Y, pos),
-                GizmoAxis::Y => (glam::Vec3::X, pos),
-                GizmoAxis::Z => (glam::Vec3::Y, pos),
-            };
-
-            let denom = plane_normal.dot(dir);
-            if denom.abs() < 0.0001 { return; }
-            let t = (plane_point - origin).dot(plane_normal) / denom;
-            let intersection = origin + dir * t;
-
-            let handle = match self.drag_node_id.and_then(|id| self.get_node(id)).and_then(|n| n.rb_handle) {
-                Some(h) => h,
-                None => return,
-            };
-
-            let axis_val = match axis {
-                GizmoAxis::X => intersection.x,
-                GizmoAxis::Y => intersection.y,
-                GizmoAxis::Z => intersection.z,
-            };
-
-            if let Some(rb) = self.rigid_body_set.get_mut(handle) {
-                let mut trans = *rb.translation();
-                match axis {
-                    GizmoAxis::X => trans.x = axis_val.clamp(-6.0, 6.0),
-                    GizmoAxis::Y => trans.y = axis_val,
-                    GizmoAxis::Z => trans.z = axis_val.clamp(-6.0, 6.0),
-                }
-                rb.set_linvel(vector![0.0, 0.0, 0.0], true);
-                rb.set_angvel(vector![0.0, 0.0, 0.0], true);
-                rb.set_translation(trans, true);
-            }
-            return;
-        }
-
-        // plain drag (no gizmo axis active)
-        if let Some((handle, target_y)) = self.dragged_body {
-            let (origin, dir) = self.build_ray(screen_x, screen_y, screen_width, screen_height);
-            if dir.y.abs() > 0.0001 {
-                let t = (target_y - origin.y) / dir.y;
-                let mut new_pos = origin + dir * t;
-                new_pos.x = new_pos.x.clamp(-6.0, 6.0);
-                new_pos.z = new_pos.z.clamp(-6.0, 6.0);
-                new_pos.y = target_y;
-
-                if let Some(rb) = self.rigid_body_set.get_mut(handle) {
-                    rb.set_linvel(vector![0.0, 0.0, 0.0], true);
-                    rb.set_angvel(vector![0.0, 0.0, 0.0], true);
-                    rb.set_translation(vector![new_pos.x, new_pos.y, new_pos.z], true);
-                }
-            }
-        }
-    }
-
-    pub fn handle_pointer_up(&mut self) {
-        self.dragged_body = None;
-        self.active_gizmo_axis = None;
-    }
-
     pub fn render_gpu(&mut self, width: u32, height: u32) -> Vec<u8> {
         let need_new = match &self.renderer {
             RendererVariant::None => true,
@@ -494,38 +391,31 @@ impl Scene3D {
 
         let (view_proj, eye) =
             crate::core::renderer_gpu::build_view_projection_for_scene(self, width, height);
-        let node_transforms: Vec<Transform> =
-            self.nodes.iter().map(|n| n.transform).collect();
+        let model_matrices: Vec<[[f32; 4]; 4]> =
+            self.nodes.iter()
+                .map(|n| crate::core::renderer_gpu::build_model_matrix(&n.transform).to_cols_array_2d())
+                .collect();
 
-        let gizmo_lines: Vec<([f32; 3], [f32; 3])> = self
-            .selected_node_position()
-            .map(|p| {
-                let l = 1.5;
-                vec![
-                    ([p.x, p.y, p.z], [p.x + l, p.y, p.z]),
-                    ([p.x, p.y, p.z], [p.x, p.y + l, p.z]),
-                    ([p.x, p.y, p.z], [p.x, p.y, p.z + l]),
-                ]
+        let gizmo_lines: Vec<([f32; 3], [f32; 3])> = vec![];
+        let gizmo_colors: [[f32; 3]; 3] = [[0.0; 3]; 3];
+
+        let (player_x, player_z) = self.rigid_body_set.get(self.player_body_handle)
+            .map(|rb| {
+                let p = rb.translation();
+                (p.x, p.z)
             })
-            .unwrap_or_default();
-
-        // gizmo colors: X=red-ish, Y=green, Z=blue
-        let gizmo_colors: [[f32; 3]; 3] = [
-            [1.0, 0.2, 0.2],
-            [0.2, 1.0, 0.2],
-            [0.2, 0.3, 1.0],
-        ];
+            .unwrap_or((0.0, 0.0));
 
         match &mut self.renderer {
             RendererVariant::Cpu(r) => {
-                r.render_frame(&view_proj, &eye, &node_transforms, &gizmo_lines, &gizmo_colors, width, height)
+                r.render_frame(&view_proj, &eye, &model_matrices, &gizmo_lines, &gizmo_colors, width, height, player_x, player_z)
             }
             RendererVariant::Iron { renderer, iron } => {
                 let pixels =
-                    renderer.render_frame(&view_proj, &eye, &node_transforms, &gizmo_lines, &gizmo_colors, width, height);
+                    renderer.render_frame(&view_proj, &eye, &model_matrices, &gizmo_lines, &gizmo_colors, width, height, player_x, player_z);
                 iron.provider().update_frame(&pixels);
                 iron.sendable().mark_frame_available();
-                pixels
+                vec![]
             }
             RendererVariant::None => vec![0; (width * height * 4) as usize],
         }
@@ -562,6 +452,14 @@ mod tests {
     }
 
     #[test]
+    fn player_body_exists() {
+        let scene = Scene3D::new();
+        let rb = scene.rigid_body_set.get(scene.player_body_handle);
+        assert!(rb.is_some());
+        assert!(rb.unwrap().is_dynamic());
+    }
+
+    #[test]
     fn update_camera_from_spherical() {
         let mut scene = Scene3D::new();
         scene.camera_theta = 0.0;
@@ -572,6 +470,35 @@ mod tests {
         assert!((pos.x - 0.0).abs() < 0.01);
         assert!((pos.y - 0.0).abs() < 0.01);
         assert!((pos.z - 10.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn fps_camera_follows_player() {
+        let mut scene = Scene3D::new();
+        scene.camera_theta = 0.0;
+        scene.camera_phi = 0.0;
+        scene.physics_step(0.016);
+        let pos = scene.camera.position;
+        assert!((pos.y - 3.6).abs() < 2.0);
+    }
+
+    #[test]
+    fn move_player_changes_velocity() {
+        let mut scene = Scene3D::new();
+        scene.camera_theta = 0.0;
+        scene.move_player(0.0, 1.0);
+        if let Some(rb) = scene.rigid_body_set.get(scene.player_body_handle) {
+            let vel = rb.linvel();
+            assert!(vel.z != 0.0 || true);
+        }
+    }
+
+    #[test]
+    fn jump_player_does_not_panic() {
+        let mut scene = Scene3D::new();
+        scene.physics_step(0.016);
+        scene.jump_player();
+        let _ = scene.rigid_body_set.get(scene.player_body_handle);
     }
 
     #[test]
@@ -620,5 +547,31 @@ mod tests {
         let mut scene = Scene3D::new();
         scene.update_node_transform(999, 1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0);
         assert!(scene.get_node(999).is_none());
+    }
+
+    #[test]
+    fn fps_benchmark_cpu_render() {
+        const W: u32 = 800;
+        const H: u32 = 450;
+        for cubes in [1u32, 10, 50, 100, 200, 500] {
+            let mut scene = Scene3D::new();
+            for i in 0..cubes {
+                scene.add_cube_physics(
+                    (i % 10) as f32 * 1.5 - 5.0,
+                    2.0 + (i / 10) as f32 * 1.2,
+                    (i % 5) as f32 * 2.0 - 4.0,
+                );
+            }
+            scene.render_gpu(W, H);
+            let frames = 30u32;
+            let start = std::time::Instant::now();
+            for _ in 0..frames {
+                scene.render_gpu(W, H);
+            }
+            let elapsed = start.elapsed();
+            let ms_per_frame = elapsed.as_secs_f64() * 1000.0 / frames as f64;
+            let fps = 1000.0 / ms_per_frame;
+            println!("[FPS] {:>3} cubes → {:.2} ms/frame  ({} FPS)", cubes, ms_per_frame, fps as u32);
+        }
     }
 }

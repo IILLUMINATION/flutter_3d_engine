@@ -93,6 +93,14 @@ impl Matrix4 {
         m
     }
 
+    pub fn from_rotation_x(angle_rad: f32) -> Self {
+        let (s, c) = angle_rad.sin_cos();
+        let mut m = Self::IDENTITY;
+        m.data[1][1] = c; m.data[1][2] = -s;
+        m.data[2][1] = s; m.data[2][2] = c;
+        m
+    }
+
     pub fn from_rotation_y(angle_rad: f32) -> Self {
         let (s, c) = angle_rad.sin_cos();
         let mut m = Self::IDENTITY;
@@ -100,6 +108,14 @@ impl Matrix4 {
         m.data[0][2] = s;
         m.data[2][0] = -s;
         m.data[2][2] = c;
+        m
+    }
+
+    pub fn from_rotation_z(angle_rad: f32) -> Self {
+        let (s, c) = angle_rad.sin_cos();
+        let mut m = Self::IDENTITY;
+        m.data[0][0] = c; m.data[0][1] = -s;
+        m.data[1][0] = s; m.data[1][1] = c;
         m
     }
 
@@ -149,9 +165,10 @@ impl Transform {
             point.z * self.scale.z,
         );
 
+        let rx = Matrix4::from_rotation_x(self.rotation.x);
         let ry = Matrix4::from_rotation_y(self.rotation.y);
-        let rx = Matrix4::from_rotation_y(self.rotation.x); // placeholder: treat x-rot like y for now
-        let rotated = ry.multiply(&rx).transform_vector3(&scaled);
+        let rz = Matrix4::from_rotation_z(self.rotation.z);
+        let rotated = rz.multiply(&ry).multiply(&rx).transform_vector3(&scaled);
 
         rotated + self.position
     }

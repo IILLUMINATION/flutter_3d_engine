@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -900847823;
+  int get rustContentHash => 519880953;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -101,24 +101,6 @@ abstract class RustLibApi extends BaseApi {
     required Scene3D scene,
   });
 
-  bool crateApiSimpleHandlePointerDown({
-    required Scene3D scene,
-    required double screenX,
-    required double screenY,
-    required double screenWidth,
-    required double screenHeight,
-  });
-
-  void crateApiSimpleHandlePointerMove({
-    required Scene3D scene,
-    required double screenX,
-    required double screenY,
-    required double screenWidth,
-    required double screenHeight,
-  });
-
-  void crateApiSimpleHandlePointerUp({required Scene3D scene});
-
   Future<void> crateApiSimpleInitApp();
 
   void crateApiSimpleInitDefaultCamera({required Scene3D scene});
@@ -128,6 +110,14 @@ abstract class RustLibApi extends BaseApi {
     required PlatformInt64 engineHandle,
     required int width,
     required int height,
+  });
+
+  void crateApiSimpleJumpPlayer({required Scene3D scene});
+
+  void crateApiSimpleMovePlayer({
+    required Scene3D scene,
+    required double dx,
+    required double dz,
   });
 
   void crateApiSimpleOrbitCamera({
@@ -155,29 +145,7 @@ abstract class RustLibApi extends BaseApi {
     required double fov,
   });
 
-  Future<void> crateApiSimpleSetCameraPosition({
-    required Scene3D scene,
-    required double x,
-    required double y,
-    required double z,
-  });
-
-  Future<void> crateApiSimpleSetCameraTarget({
-    required Scene3D scene,
-    required double x,
-    required double y,
-    required double z,
-  });
-
-  void crateApiSimpleUpdateCamera({
-    required Scene3D scene,
-    required double px,
-    required double py,
-    required double pz,
-    required double tx,
-    required double ty,
-    required double tz,
-  });
+  BigInt crateApiSimpleSpawnCubeInFront({required Scene3D scene});
 
   void crateApiSimpleUpdateNodeTransform({
     required Scene3D scene,
@@ -389,122 +357,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "get_camera_target", argNames: ["scene"]);
 
   @override
-  bool crateApiSimpleHandlePointerDown({
-    required Scene3D scene,
-    required double screenX,
-    required double screenY,
-    required double screenWidth,
-    required double screenHeight,
-  }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
-            scene,
-            serializer,
-          );
-          sse_encode_f_32(screenX, serializer);
-          sse_encode_f_32(screenY, serializer);
-          sse_encode_f_32(screenWidth, serializer);
-          sse_encode_f_32(screenHeight, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_bool,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleHandlePointerDownConstMeta,
-        argValues: [scene, screenX, screenY, screenWidth, screenHeight],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleHandlePointerDownConstMeta =>
-      const TaskConstMeta(
-        debugName: "handle_pointer_down",
-        argNames: [
-          "scene",
-          "screenX",
-          "screenY",
-          "screenWidth",
-          "screenHeight",
-        ],
-      );
-
-  @override
-  void crateApiSimpleHandlePointerMove({
-    required Scene3D scene,
-    required double screenX,
-    required double screenY,
-    required double screenWidth,
-    required double screenHeight,
-  }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
-            scene,
-            serializer,
-          );
-          sse_encode_f_32(screenX, serializer);
-          sse_encode_f_32(screenY, serializer);
-          sse_encode_f_32(screenWidth, serializer);
-          sse_encode_f_32(screenHeight, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleHandlePointerMoveConstMeta,
-        argValues: [scene, screenX, screenY, screenWidth, screenHeight],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleHandlePointerMoveConstMeta =>
-      const TaskConstMeta(
-        debugName: "handle_pointer_move",
-        argNames: [
-          "scene",
-          "screenX",
-          "screenY",
-          "screenWidth",
-          "screenHeight",
-        ],
-      );
-
-  @override
-  void crateApiSimpleHandlePointerUp({required Scene3D scene}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
-            scene,
-            serializer,
-          );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleHandlePointerUpConstMeta,
-        argValues: [scene],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleHandlePointerUpConstMeta =>
-      const TaskConstMeta(debugName: "handle_pointer_up", argNames: ["scene"]);
-
-  @override
   Future<void> crateApiSimpleInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -513,7 +365,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 6,
             port: port_,
           );
         },
@@ -541,7 +393,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             scene,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -581,7 +433,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 8,
             port: port_,
           );
         },
@@ -603,6 +455,66 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  void crateApiSimpleJumpPlayer({required Scene3D scene}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
+            scene,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSimpleJumpPlayerConstMeta,
+        argValues: [scene],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSimpleJumpPlayerConstMeta =>
+      const TaskConstMeta(debugName: "jump_player", argNames: ["scene"]);
+
+  @override
+  void crateApiSimpleMovePlayer({
+    required Scene3D scene,
+    required double dx,
+    required double dz,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
+            scene,
+            serializer,
+          );
+          sse_encode_f_32(dx, serializer);
+          sse_encode_f_32(dz, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSimpleMovePlayerConstMeta,
+        argValues: [scene, dx, dz],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSimpleMovePlayerConstMeta => const TaskConstMeta(
+    debugName: "move_player",
+    argNames: ["scene", "dx", "dz"],
+  );
+
+  @override
   void crateApiSimpleOrbitCamera({
     required Scene3D scene,
     required double dx,
@@ -618,7 +530,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
           sse_encode_f_32(dx, serializer);
           sse_encode_f_32(dy, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -647,7 +559,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_f_32(dt, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -682,7 +594,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 13,
             port: port_,
           );
         },
@@ -722,7 +634,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 14,
             port: port_,
           );
         },
@@ -759,7 +671,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 15,
             port: port_,
           );
         },
@@ -780,99 +692,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<void> crateApiSimpleSetCameraPosition({
-    required Scene3D scene,
-    required double x,
-    required double y,
-    required double z,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
-            scene,
-            serializer,
-          );
-          sse_encode_f_32(x, serializer);
-          sse_encode_f_32(y, serializer);
-          sse_encode_f_32(z, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 17,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleSetCameraPositionConstMeta,
-        argValues: [scene, x, y, z],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleSetCameraPositionConstMeta =>
-      const TaskConstMeta(
-        debugName: "set_camera_position",
-        argNames: ["scene", "x", "y", "z"],
-      );
-
-  @override
-  Future<void> crateApiSimpleSetCameraTarget({
-    required Scene3D scene,
-    required double x,
-    required double y,
-    required double z,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
-            scene,
-            serializer,
-          );
-          sse_encode_f_32(x, serializer);
-          sse_encode_f_32(y, serializer);
-          sse_encode_f_32(z, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 18,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleSetCameraTargetConstMeta,
-        argValues: [scene, x, y, z],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleSetCameraTargetConstMeta =>
-      const TaskConstMeta(
-        debugName: "set_camera_target",
-        argNames: ["scene", "x", "y", "z"],
-      );
-
-  @override
-  void crateApiSimpleUpdateCamera({
-    required Scene3D scene,
-    required double px,
-    required double py,
-    required double pz,
-    required double tx,
-    required double ty,
-    required double tz,
-  }) {
+  BigInt crateApiSimpleSpawnCubeInFront({required Scene3D scene}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -881,29 +701,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             scene,
             serializer,
           );
-          sse_encode_f_32(px, serializer);
-          sse_encode_f_32(py, serializer);
-          sse_encode_f_32(pz, serializer);
-          sse_encode_f_32(tx, serializer);
-          sse_encode_f_32(ty, serializer);
-          sse_encode_f_32(tz, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
+          decodeSuccessData: sse_decode_u_64,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiSimpleUpdateCameraConstMeta,
-        argValues: [scene, px, py, pz, tx, ty, tz],
+        constMeta: kCrateApiSimpleSpawnCubeInFrontConstMeta,
+        argValues: [scene],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiSimpleUpdateCameraConstMeta => const TaskConstMeta(
-    debugName: "update_camera",
-    argNames: ["scene", "px", "py", "pz", "tx", "ty", "tz"],
-  );
+  TaskConstMeta get kCrateApiSimpleSpawnCubeInFrontConstMeta =>
+      const TaskConstMeta(
+        debugName: "spawn_cube_in_front",
+        argNames: ["scene"],
+      );
 
   @override
   void crateApiSimpleUpdateNodeTransform({
@@ -937,7 +752,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_f_32(sx, serializer);
           sse_encode_f_32(sy, serializer);
           sse_encode_f_32(sz, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 20)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 17)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -982,7 +797,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_f_32(delta, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 21)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 18)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -1042,12 +857,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return Scene3DImpl.frbInternalDcoDecode(raw as List<dynamic>);
-  }
-
-  @protected
-  bool dco_decode_bool(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw as bool;
   }
 
   @protected
@@ -1161,12 +970,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getUint8() != 0;
-  }
-
-  @protected
   double sse_decode_f_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getFloat32();
@@ -1232,6 +1035,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  bool sse_decode_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
   void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
     Scene3D self,
@@ -1281,12 +1090,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       (self as Scene3DImpl).frbInternalSseEncode(move: null),
       serializer,
     );
-  }
-
-  @protected
-  void sse_encode_bool(bool self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putUint8(self ? 1 : 0);
   }
 
   @protected
@@ -1355,6 +1158,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint8(self ? 1 : 0);
   }
 }
 
