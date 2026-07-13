@@ -12,7 +12,6 @@ dependencies:
     sdk: flutter
   flutter_rust_3d:
     path: ../
-  pointer_lock: ^0.1.2
 
 dev_dependencies:
   flutter_test:

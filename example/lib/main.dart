@@ -2,9 +2,9 @@ import 'dart:ui';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:irondash_engine_context/irondash_engine_context.dart';
-import 'package:pointer_lock/pointer_lock.dart';
 import 'package:flutter_rust_3d/flutter_rust_3d.dart';
 import 'package:flutter_rust_3d/src/rust/frb_generated.dart';
 import 'package:flutter_rust_3d/src/rust/api/simple.dart';
@@ -47,7 +47,7 @@ class _DemoScreenState extends State<DemoScreen> {
   final List<BigInt> _cubeIds = [];
 
   final Set<PhysicalKeyboardKey> _pressedKeys = {};
-  PointerLockSession? _pointerLockSession;
+  bool _mouseCaptured = false;
 
   @override
   void initState() {
@@ -58,12 +58,15 @@ class _DemoScreenState extends State<DemoScreen> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onKeyEvent);
-    _pointerLockSession?.dispose();
     super.dispose();
   }
 
   bool _onKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
+      if (event.physicalKey == PhysicalKeyboardKey.escape) {
+        setState(() => _mouseCaptured = false);
+        return true;
+      }
       _pressedKeys.add(event.physicalKey);
     } else if (event is KeyUpEvent) {
       _pressedKeys.remove(event.physicalKey);
@@ -97,116 +100,108 @@ class _DemoScreenState extends State<DemoScreen> {
   }
 
   void _onTap() {
-    if (_pointerLockSession == null) {
-      _lockMouse();
-      return;
-    }
-    if (_controller != null) {
-      final id = _controller!.spawnCubeInFront();
-      setState(() => _cubeIds.add(id));
-    }
+    setState(() => _mouseCaptured = !_mouseCaptured);
   }
 
-  void _lockMouse() {
-    final pointerLock = PointerLock.instance;
-    _pointerLockSession = pointerLock.createSession();
+  void _onSecondaryTap() {
+    if (_controller == null) return;
+    final id = _controller!.spawnCubeInFront();
+    setState(() => _cubeIds.add(id));
+  }
 
-    _pointerLockSession!.events.listen((event) {
-      if (event is PointerLockMoveEvent && _controller != null) {
-        _controller!.orbitCamera(event.delta.dx, event.delta.dy);
-      }
-    }, onDone: () {
-      setState(() {
-        _pointerLockSession?.dispose();
-        _pointerLockSession = null;
-      });
-    });
-
-    setState(() {});
+  void _onPointerHover(PointerHoverEvent event) {
+    if (_controller == null || !_mouseCaptured) return;
+    _controller!.orbitCamera(event.delta.dx, event.delta.dy);
   }
 
   @override
   Widget build(BuildContext context) {
-    final locked = _pointerLockSession != null;
+    final cursor = _mouseCaptured ? SystemMouseCursors.none : SystemMouseCursors.basic;
 
     return Scaffold(
-      body: GestureDetector(
-        onTap: _onTap,
-        behavior: HitTestBehavior.translucent,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: FullScreenCanvas(
-                onCreated: _onCreated,
-                onTick: _onTick,
-              ),
-            ),
-            if (locked)
-              const Center(
-                child: IgnorePointer(
-                  child: Crosshair(),
-                ),
-              ),
-            if (!locked)
-              const Positioned.fill(
-                child: Center(
-                  child: IgnorePointer(
-                    child: Text(
-                      'Click to capture mouse (ESC to release)\nClick again to spawn cubes',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 13,
-                        height: 1.6,
-                      ),
-                    ),
+      body: MouseRegion(
+        cursor: cursor,
+        child: GestureDetector(
+          onTap: _onTap,
+          onSecondaryTap: _onSecondaryTap,
+          child: Listener(
+            onPointerHover: _onPointerHover,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: FullScreenCanvas(
+                    onCreated: _onCreated,
+                    onTick: _onTick,
                   ),
                 ),
-              ),
-            if (!locked)
-              Positioned(
-                top: 24,
-                right: 24,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      width: 190,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF28282E).withOpacity(0.75),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const Text('FPS Sandbox',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Color(0xFFE27F2D),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              letterSpacing: 0.5,
-                            ),
+                if (_mouseCaptured)
+                  const Center(
+                    child: IgnorePointer(
+                      child: Crosshair(),
+                    ),
+                  ),
+                if (!_mouseCaptured)
+                  const Positioned.fill(
+                    child: Center(
+                      child: IgnorePointer(
+                        child: Text(
+                          'Click to capture mouse (ESC to release)\nRight-click to spawn cubes',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 13,
+                            height: 1.6,
                           ),
-                          const SizedBox(height: 14),
-                          const Divider(color: Colors.white10, height: 1, thickness: 1),
-                          const SizedBox(height: 12),
-                          _infoRow('Cubes Count', '${_cubeIds.length}', bold: true),
-                          const SizedBox(height: 12),
-                          const Divider(color: Colors.white10, height: 1, thickness: 1),
-                          const SizedBox(height: 12),
-                          _controlsRow(),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-          ],
+                if (!_mouseCaptured)
+                  Positioned(
+                    top: 24,
+                    right: 24,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          width: 190,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF28282E).withOpacity(0.75),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const Text('FPS Sandbox',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Color(0xFFE27F2D),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              const Divider(color: Colors.white10, height: 1, thickness: 1),
+                              const SizedBox(height: 12),
+                              _infoRow('Cubes Count', '${_cubeIds.length}', bold: true),
+                              const SizedBox(height: 12),
+                              const Divider(color: Colors.white10, height: 1, thickness: 1),
+                              const SizedBox(height: 12),
+                              _controlsRow(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -227,9 +222,9 @@ class _DemoScreenState extends State<DemoScreen> {
         SizedBox(height: 2),
         Text('Space — Jump', style: TextStyle(color: Colors.white54, fontSize: 10)),
         SizedBox(height: 2),
-        Text('First click — Capture mouse', style: TextStyle(color: Colors.white54, fontSize: 10)),
+        Text('Click — Capture/release mouse', style: TextStyle(color: Colors.white54, fontSize: 10)),
         SizedBox(height: 2),
-        Text('Next click — Spawn cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
+        Text('Right-click — Spawn cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
       ],
     );
   }
