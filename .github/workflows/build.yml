@@ -13,10 +13,8 @@ jobs:
         working-directory: example
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: true
 
-      - uses: actions-rs/toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
 
@@ -31,6 +29,10 @@ jobs:
       - run: flutter pub get
       - run: flutter create --platforms=windows .
       - run: flutter build windows --release
+
+      - name: Copy Rust DLL
+        run: copy ..\rust\target\release\rust_lib_flutter_rust_3d.dll build\windows\x64\runner\Release\
+        shell: cmd
 
       - uses: actions/upload-artifact@v4
         with:
