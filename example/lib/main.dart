@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/gestures.dart';
@@ -17,6 +18,7 @@ Future<void> main() async {
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
   ]);
+  await pointerLock.ensureInitialized();
   await RustLib.init();
   runApp(const AppRoot());
 }
@@ -49,7 +51,7 @@ class _DemoScreenState extends State<DemoScreen> {
 
   final Set<PhysicalKeyboardKey> _pressedKeys = {};
   bool _pointerLocked = false;
-  StreamSubscription<PointerLockMoveDelta>? _moveSub;
+  StreamSubscription<PointerLockMoveEvent>? _moveSub;
 
   @override
   void initState() {
@@ -61,9 +63,6 @@ class _DemoScreenState extends State<DemoScreen> {
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onKeyEvent);
     _moveSub?.cancel();
-    if (_pointerLocked) {
-      PointerLock.instance.unlock();
-    }
     super.dispose();
   }
 
@@ -116,20 +115,27 @@ class _DemoScreenState extends State<DemoScreen> {
     setState(() => _cubeIds.add(id));
   }
 
-  Future<void> _lockMouse() async {
-    await PointerLock.instance.lock();
-    _moveSub = PointerLock.instance.onPointerMove.listen((delta) {
-      if (_controller != null) {
-        _controller!.orbitCamera(delta.dx, delta.dy);
-      }
-    });
+  void _lockMouse() {
+    if (_moveSub != null) return;
+    final deltaStream = pointerLock.createSession(
+      cursor: PointerLockCursor.hidden,
+    );
+    _moveSub = deltaStream.listen(
+      (event) {
+        if (_controller != null) {
+          _controller!.orbitCamera(event.delta.dx, event.delta.dy);
+        }
+      },
+      onDone: () {
+        setState(() => _pointerLocked = false);
+      },
+    );
     setState(() => _pointerLocked = true);
   }
 
   void _unlockMouse() {
     _moveSub?.cancel();
     _moveSub = null;
-    PointerLock.instance.unlock();
     setState(() => _pointerLocked = false);
   }
 
