@@ -109,6 +109,7 @@ pub struct GpuRenderer<S: FrameSink = crate::core::present::CpuBufferSink> {
     camera_bind_group: wgpu::BindGroup,
     models_storage_buffer: wgpu::Buffer,
     models_bind_group: wgpu::BindGroup,
+    #[allow(dead_code)]
     models_bind_group_layout: wgpu::BindGroupLayout,
     grid_pipeline: wgpu::RenderPipeline,
     grid_buffer: wgpu::Buffer,
