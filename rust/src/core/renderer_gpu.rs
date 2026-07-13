@@ -1,5 +1,3 @@
-use std::sync::atomic::{AtomicU64, Ordering};
-
 use wgpu::util::DeviceExt;
 
 use crate::core::math::Transform;
@@ -375,8 +373,6 @@ impl<S: FrameSink> GpuRenderer<S> {
         });
         let depth_view = depth_texture.create_view(&Default::default());
 
-        println!("[renderer_gpu] Initialized {}x{}", width, height);
-
         Self {
             device,
             queue,
@@ -439,12 +435,6 @@ impl<S: FrameSink> GpuRenderer<S> {
         player_x: f32,
         player_z: f32,
     ) -> Vec<u8> {
-        static COUNTER: AtomicU64 = AtomicU64::new(0);
-        let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-        if n % 60 == 0 {
-            println!("[renderer_gpu] render_frame call #{}", n + 1);
-        }
-
         if self.render_texture.width() != width || self.render_texture.height() != height {
             self.resize(width, height);
         }

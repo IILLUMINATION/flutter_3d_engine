@@ -168,6 +168,11 @@ impl Scene3D {
     }
 
     pub fn orbit_camera(&mut self, dx: f32, dy: f32) {
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if n % 30 == 0 {
+            println!("[orbit] dx={:.2} dy={:.2} → theta={:.3} phi={:.3}", dx, dy, self.camera_theta, self.camera_phi);
+        }
         self.camera_theta += dx * 0.00005;
         self.camera_phi -= dy * 0.00005;
         self.camera_phi = self.camera_phi.clamp(-1.2, 1.2);
