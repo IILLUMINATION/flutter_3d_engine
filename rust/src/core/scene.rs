@@ -58,6 +58,7 @@ pub struct Scene3D {
     gpu_width:       u32,
     gpu_height:      u32,
     texture_id:      Option<i64>,
+    iron_engine_handle: Option<i64>,
 
     pub camera_theta:  f32,
     pub camera_phi:    f32,
@@ -115,6 +116,7 @@ impl Scene3D {
             gpu_width:    0,
             gpu_height:   0,
             texture_id:   None,
+            iron_engine_handle: None,
             camera_theta:  0.0,
             camera_phi:    0.0,
             camera_radius: 0.0,
@@ -381,6 +383,7 @@ impl Scene3D {
 
     pub fn init_native_texture(&mut self, engine_handle: i64, width: u32, height: u32) -> i64 {
         println!("[scene] Initializing native irondash texture: {}x{}", width, height);
+        self.iron_engine_handle = Some(engine_handle);
         let iron = crate::core::present::IrondashTexturePresenter::new(engine_handle, width, height);
         let id = iron.texture_id();
         let cpu_sink = crate::core::present::CpuBufferSink::new(width, height);
@@ -397,12 +400,21 @@ impl Scene3D {
     }
 
     pub fn render_gpu(&mut self, width: u32, height: u32) -> Vec<u8> {
-        let need_new = match &self.renderer {
-            RendererVariant::None => true,
-            _ => self.gpu_width != width || self.gpu_height != height,
-        };
+        let size_changed = self.gpu_width != width || self.gpu_height != height;
 
-        if need_new && self.texture_id.is_none() {
+        if size_changed && self.texture_id.is_some() {
+            if let Some(engine_handle) = self.iron_engine_handle {
+                println!("[scene] Resizing Iron renderer: {}x{} -> {}x{}", self.gpu_width, self.gpu_height, width, height);
+                let iron = crate::core::present::IrondashTexturePresenter::new(engine_handle, width, height);
+                let new_id = iron.texture_id();
+                let cpu_sink = crate::core::present::CpuBufferSink::new(width, height);
+                let renderer = crate::core::renderer_gpu::GpuRenderer::new(width, height, cpu_sink);
+                self.renderer = RendererVariant::Iron { renderer, iron };
+                self.texture_id = Some(new_id);
+                self.gpu_width = width;
+                self.gpu_height = height;
+            }
+        } else if size_changed && self.texture_id.is_none() {
             println!("[scene] Creating/resizing CpuRenderer: {}x{}", width, height);
             let sink = crate::core::present::CpuBufferSink::new(width, height);
             self.renderer = RendererVariant::Cpu(
