@@ -76,7 +76,8 @@ pub struct Scene3D {
     multibody_joint_set: MultibodyJointSet,
     ccd_solver:          CCDSolver,
 
-    player_body_handle: RigidBodyHandle,
+    player_body_handle:  RigidBodyHandle,
+    ground_body_handle:  RigidBodyHandle,
 }
 
 impl Scene3D {
@@ -89,9 +90,9 @@ impl Scene3D {
         let ground_rb = RigidBodyBuilder::fixed()
             .translation(vector![0.0, -1.0, 0.0])
             .build();
-        let ground_handle = rigid_body_set.insert(ground_rb);
+        let ground_body_handle = rigid_body_set.insert(ground_rb);
         let ground_collider = ColliderBuilder::cuboid(1000.0, 0.1, 1000.0).build();
-        collider_set.insert_with_parent(ground_collider, ground_handle, &mut rigid_body_set);
+        collider_set.insert_with_parent(ground_collider, ground_body_handle, &mut rigid_body_set);
 
         let player_rb = RigidBodyBuilder::dynamic()
             .translation(vector![0.0, 2.0, 0.0])
@@ -130,6 +131,7 @@ impl Scene3D {
             ccd_solver:             CCDSolver::new(),
             query_pipeline:         QueryPipeline::new(),
             player_body_handle,
+            ground_body_handle,
         }
     }
 
@@ -166,7 +168,7 @@ impl Scene3D {
     }
 
     pub fn orbit_camera(&mut self, dx: f32, dy: f32) {
-        self.camera_theta -= dx * 0.005;
+        self.camera_theta += dx * 0.005;
         self.camera_phi -= dy * 0.005;
         self.camera_phi = self.camera_phi.clamp(-1.4, 1.4);
         self.update_fps_camera();
@@ -307,7 +309,27 @@ impl Scene3D {
         id
     }
 
+    fn reposition_ground(&mut self) {
+        const GROUND_TILE: f32 = 1000.0;
+        if let Some(player_pos) = self.rigid_body_set
+            .get(self.player_body_handle)
+            .map(|rb| rb.translation())
+        {
+            let gx = (player_pos.x / GROUND_TILE).round() * GROUND_TILE;
+            let gz = (player_pos.z / GROUND_TILE).round() * GROUND_TILE;
+            if let Some(ground_rb) = self.rigid_body_set.get_mut(self.ground_body_handle) {
+                let current = ground_rb.translation();
+                if (current.x - gx).abs() > 1.0 || (current.z - gz).abs() > 1.0 {
+                    ground_rb.set_translation(vector![gx, -1.0, gz], true);
+                    ground_rb.set_linvel(vector![0.0, 0.0, 0.0], true);
+                }
+            }
+        }
+    }
+
     pub fn physics_step(&mut self, _dt: f32) {
+        self.reposition_ground();
+
         self.physics_pipeline.step(
             &vector![self.gravity.x, self.gravity.y, self.gravity.z],
             &self.integration_parameters,

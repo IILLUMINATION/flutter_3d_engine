@@ -4,6 +4,7 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   irondash_engine_context
+  pointer_lock
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

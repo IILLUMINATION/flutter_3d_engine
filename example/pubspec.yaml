@@ -12,6 +12,9 @@ dependencies:
     sdk: flutter
   flutter_rust_3d:
     path: ../
+  pointer_lock:
+    git:
+      url: https://github.com/helgoboss/pointer_lock.git
 
 dev_dependencies:
   flutter_test:
