@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="demo.gif" width="720" alt="Flutter 3D Engine demo"/>
+  <img src="https://raw.githubusercontent.com/IILLUMINATION/flutter_3d_engine/main/demo.gif" width="720" alt="Demo"/>
 </p>
 
 <p align="center">
