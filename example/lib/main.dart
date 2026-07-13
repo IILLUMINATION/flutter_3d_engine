@@ -80,26 +80,19 @@ class _DemoScreenState extends State<DemoScreen> {
 
   bool _onKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
-      for (int digit = 1; digit <= 9; digit++) {
-        if (event.physicalKey == PhysicalKeyboardKey.values.firstWhere(
-          (k) => k.debugName == 'Digit$digit',
-          orElse: () => PhysicalKeyboardKey.unknown,
-        )) {
-          if (PhysicalKeyboardKey.unknown == PhysicalKeyboardKey.values.firstWhere(
-            (k) => k.debugName == 'Digit$digit',
-            orElse: () => PhysicalKeyboardKey.unknown,
-          )) {
-            continue;
-          }
-          setState(() => _selectedColorIndex = digit - 1);
-          return true;
-        }
+      switch (event.physicalKey) {
+        case PhysicalKeyboardKey.digit1: setState(() => _selectedColorIndex = 0); return true;
+        case PhysicalKeyboardKey.digit2: setState(() => _selectedColorIndex = 1); return true;
+        case PhysicalKeyboardKey.digit3: setState(() => _selectedColorIndex = 2); return true;
+        case PhysicalKeyboardKey.digit4: setState(() => _selectedColorIndex = 3); return true;
+        case PhysicalKeyboardKey.digit5: setState(() => _selectedColorIndex = 4); return true;
+        case PhysicalKeyboardKey.digit6: setState(() => _selectedColorIndex = 5); return true;
+        case PhysicalKeyboardKey.digit7: setState(() => _selectedColorIndex = 6); return true;
+        case PhysicalKeyboardKey.digit8: setState(() => _selectedColorIndex = 7); return true;
+        case PhysicalKeyboardKey.digit9: setState(() => _selectedColorIndex = 8); return true;
+        case PhysicalKeyboardKey.digit0: setState(() => _selectedColorIndex = 9); return true;
+        default: _pressedKeys.add(event.physicalKey);
       }
-      if (event.physicalKey == PhysicalKeyboardKey.digit0) {
-        setState(() => _selectedColorIndex = 9);
-        return true;
-      }
-      _pressedKeys.add(event.physicalKey);
     } else if (event is KeyUpEvent) {
       _pressedKeys.remove(event.physicalKey);
     }
@@ -131,24 +124,20 @@ class _DemoScreenState extends State<DemoScreen> {
     }
   }
 
-  void _onTap() {
-    setState(() => _mouseCaptured = !_mouseCaptured);
-  }
-
   void _spawnCube() {
     if (_controller == null) return;
     final c = _selectedColor;
-    final r = c.r / 255.0;
-    final g = c.g / 255.0;
-    final b = c.b / 255.0;
+    final r = (c.r * 255.0).round().clamp(0, 255) / 255.0;
+    final g = (c.g * 255.0).round().clamp(0, 255) / 255.0;
+    final b = (c.b * 255.0).round().clamp(0, 255) / 255.0;
     final id = _controller!.spawnCubeInFront(r: r, g: g, b: b);
     setState(() => _cubeIds.add(id));
   }
 
   void _onPointerDown(PointerDownEvent event) {
-    if (event.buttons == kSecondaryButton) {
+    if (event.buttons == kSecondaryMouseButton) {
       _spawnCube();
-    } else if (event.buttons == kPrimaryButton) {
+    } else if (event.buttons == kPrimaryMouseButton) {
       setState(() => _mouseCaptured = !_mouseCaptured);
     }
   }
@@ -169,80 +158,70 @@ class _DemoScreenState extends State<DemoScreen> {
           onPointerDown: _onPointerDown,
           onPointerHover: _onPointerHover,
           child: Stack(
-              children: [
-                Positioned.fill(
-                  child: FullScreenCanvas(
-                    onCreated: _onCreated,
-                    onTick: _onTick,
+            children: [
+              Positioned.fill(
+                child: FullScreenCanvas(
+                  onCreated: _onCreated,
+                  onTick: _onTick,
+                ),
+              ),
+              if (_mouseCaptured)
+                const Center(
+                  child: IgnorePointer(
+                    child: Crosshair(),
                   ),
                 ),
-                if (_mouseCaptured)
-                  const Center(
+              if (!_mouseCaptured)
+                Positioned.fill(
+                  child: Center(
                     child: IgnorePointer(
-                      child: Crosshair(),
+                      child: Text(
+                        'Click — Capture / release mouse\nRight-click — Spawn cube',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white54, fontSize: 13, height: 1.6),
+                      ),
                     ),
                   ),
-                if (!_mouseCaptured)
-                  const Positioned.fill(
-                    child: Center(
-                      child: IgnorePointer(
-                        child: Text(
-                          'Click — Capture / release mouse\nRight-click — Spawn cube',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white54,
-                            fontSize: 13,
-                            height: 1.6,
-                          ),
+                ),
+              if (!_mouseCaptured)
+                Positioned(
+                  top: 24,
+                  right: 24,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        width: 190,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF28282E).withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text('FPS Sandbox',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Color(0xFFE27F2D), fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 0.5),
+                            ),
+                            const SizedBox(height: 14),
+                            const Divider(color: Colors.white10, height: 1, thickness: 1),
+                            const SizedBox(height: 12),
+                            _infoRow('Cubes Count', '${_cubeIds.length}', bold: true),
+                            const SizedBox(height: 12),
+                            const Divider(color: Colors.white10, height: 1, thickness: 1),
+                            const SizedBox(height: 12),
+                            _controlsRow(),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                if (!_mouseCaptured)
-                  Positioned(
-                    top: 24,
-                    right: 24,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          width: 190,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF28282E).withOpacity(0.75),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const Text('FPS Sandbox',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Color(0xFFE27F2D),
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              const Divider(color: Colors.white10, height: 1, thickness: 1),
-                              const SizedBox(height: 12),
-                              _infoRow('Cubes Count', '${_cubeIds.length}', bold: true),
-                              const SizedBox(height: 12),
-                              const Divider(color: Colors.white10, height: 1, thickness: 1),
-                              const SizedBox(height: 12),
-                              _controlsRow(),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+                ),
+            ],
           ),
         ),
       ),
