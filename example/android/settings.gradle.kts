@@ -24,3 +24,5 @@ plugins {
 }
 
 include(":app")
+include(":rust_lib_flutter_3d_engine")
+project(":rust_lib_flutter_3d_engine").projectDir = File("../../rust_builder/android")

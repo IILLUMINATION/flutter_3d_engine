@@ -34,6 +34,10 @@ android {
     }
 }
 
+dependencies {
+    implementation(project(":rust_lib_flutter_3d_engine"))
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
