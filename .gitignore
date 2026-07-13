@@ -57,3 +57,4 @@ app.*.map.json
 # Review bundle
 review_bundle.txt
 /tmp/merge_review.py
+animation.gif
