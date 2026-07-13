@@ -81,6 +81,16 @@ renderNativeFrame(scene, width, height);
 3. **Rapier3D** steps the physics each frame. The camera rides on the player's rigid body.
 4. **Raycasting** finds the block under the crosshair. Surface normals snap placement to the grid.
 
+## vs flutter_scene
+
+| | flutter_rust_3d | flutter_scene |
+|---|---|---|
+| Physics | Rapier3D: rigid bodies, CCD, raycasting | None, manual |
+| Flutter channel | Stable | Master only (experimental) |
+| GC pressure | Rust heap, zero GC | Dart heap, scene graph in GC |
+| Core portability | Standalone Rust crate | Locked to Flutter/Impeller |
+| Rendering control | Raw wgpu shaders, instancing | Scene graph, glTF-first |
+
 ## Status
 
 - Stable: rendering, physics, camera, block spawn/destroy, 31 unit tests
