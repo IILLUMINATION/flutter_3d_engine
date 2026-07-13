@@ -205,7 +205,7 @@ impl Scene3D {
         }
     }
 
-    fn cast_hit_block(&self) -> Option<(glam::Vec3, glam::Vec3, glam::Vec3)> {
+    fn cast_hit_block(&mut self) -> Option<(glam::Vec3, glam::Vec3, glam::Vec3)> {
         let cam = &self.camera;
         let look_x = f32::cos(self.camera_phi) * f32::sin(self.camera_theta);
         let look_y = f32::sin(self.camera_phi);
@@ -220,6 +220,8 @@ impl Scene3D {
         let dir = glam::Vec3::new(dir_x, dir_y, dir_z);
         let ray = Ray::new(point![origin.x, origin.y, origin.z], vector![dir.x, dir.y, dir.z]);
         let filter = QueryFilter::default();
+
+        self.query_pipeline.update(&self.collider_set);
 
         let (collider_handle, intersection) = self.query_pipeline.cast_ray_and_get_normal(
             &self.rigid_body_set, &self.collider_set, &ray, 100.0, true, filter,
@@ -255,7 +257,7 @@ impl Scene3D {
         Some((block_pos, snap_normal, hit))
     }
 
-    pub fn look_at_block(&self) -> Option<glam::Vec3> {
+    pub fn look_at_block(&mut self) -> Option<glam::Vec3> {
         self.cast_hit_block().map(|(block_pos, _, _)| block_pos)
     }
 
