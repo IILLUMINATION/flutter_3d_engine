@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -166,9 +164,6 @@ class _DemoScreenState extends State<DemoScreen> {
   @override
   Widget build(BuildContext context) {
     final cursor = _mouseCaptured ? SystemMouseCursors.none : SystemMouseCursors.basic;
-    final cubesText = '${_cubeIds.length}';
-    final palette = _palette;
-    final idx = _selectedColorIndex;
 
     return Scaffold(
       body: MouseRegion(
@@ -199,71 +194,35 @@ class _DemoScreenState extends State<DemoScreen> {
                 ),
               if (!_mouseCaptured)
                 Positioned(
-                  top: 24,
-                  right: 24,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        width: 190,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF28282E).withValues(alpha: 0.75),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1),
+                  top: 16,
+                  right: 16,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    width: 180,
+                    decoration: BoxDecoration(
+                      color: const Color(0xCC1A1A1E),
+                      border: Border.all(color: Colors.white12),
+                    ),
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text('FPS Sandbox',
+                          style: TextStyle(color: Color(0xFFE27F2D), fontWeight: FontWeight.w600, fontSize: 13),
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
-                            const Text(
-                              'FPS Sandbox',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Color(0xFFE27F2D), fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 0.5),
-                            ),
-                            const SizedBox(height: 14),
-                            const Divider(color: Colors.white10, height: 1, thickness: 1),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('Cubes Count', style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11)),
-                                Text(cubesText, style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 11, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            const Divider(color: Colors.white10, height: 1, thickness: 1),
-                            const SizedBox(height: 12),
-                            const Text('WASD — Move', style: TextStyle(color: Colors.white54, fontSize: 10)),
-                            const SizedBox(height: 2),
-                            const Text('Space — Jump', style: TextStyle(color: Colors.white54, fontSize: 10)),
-                            const SizedBox(height: 2),
-                            const Text('Click — Capture/release mouse', style: TextStyle(color: Colors.white54, fontSize: 10)),
-                            const SizedBox(height: 2),
-                            const Text('Right-click — Spawn cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
-                            const SizedBox(height: 2),
-                            const Text('1-9, 0 — Select color', style: TextStyle(color: Colors.white54, fontSize: 10)),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: List.generate(palette.length, (i) {
-                                return Container(
-                                  width: 14,
-                                  height: 14,
-                                  margin: const EdgeInsets.only(right: 3),
-                                  decoration: BoxDecoration(
-                                    color: palette[i],
-                                    border: Border.all(
-                                      color: i == idx ? Colors.white : Colors.white24,
-                                      width: i == idx ? 2 : 1,
-                                    ),
-                                  ),
-                                );
-                              }),
-                            ),
-                          ],
-                        ),
-                      ),
+                        SizedBox(height: 10),
+                        Text('WASD  —  Move', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                        SizedBox(height: 2),
+                        Text('Space  —  Jump', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                        SizedBox(height: 2),
+                        Text('Click  —  Capture mouse', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                        SizedBox(height: 2),
+                        Text('R-click  —  Spawn cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                        SizedBox(height: 2),
+                        Text('M-click  —  Destroy cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                        SizedBox(height: 2),
+                        Text('1-9, 0  —  Select color', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                      ],
                     ),
                   ),
                 ),
