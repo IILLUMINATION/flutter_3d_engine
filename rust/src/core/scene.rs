@@ -205,12 +205,12 @@ impl Scene3D {
         }
     }
 
-    pub fn look_at_block(&self) -> Option<glam::Vec3> {
+    fn cast_hit_block(&self) -> Option<(glam::Vec3, glam::Vec3, glam::Vec3)> {
         let cam = &self.camera;
         let look_x = f32::cos(self.camera_phi) * f32::sin(self.camera_theta);
         let look_y = f32::sin(self.camera_phi);
         let look_z = -f32::cos(self.camera_phi) * f32::cos(self.camera_theta);
-        let len = f32::sqrt(look_x * look_x + look_y * look_y + look_z * look_z);
+        let len = (look_x * look_x + look_y * look_y + look_z * look_z).sqrt();
         let (dir_x, dir_y, dir_z) = if len > 0.0001 {
             (look_x / len, look_y / len, look_z / len)
         } else {
@@ -220,109 +220,65 @@ impl Scene3D {
         let dir = glam::Vec3::new(dir_x, dir_y, dir_z);
         let ray = Ray::new(point![origin.x, origin.y, origin.z], vector![dir.x, dir.y, dir.z]);
         let filter = QueryFilter::default();
-        let pipeline = &self.query_pipeline;
-        pipeline.cast_ray(&self.rigid_body_set, &self.collider_set, &ray, 100.0, true, filter).map(|(_, toi)| {
-            let hit = origin + dir * toi;
-            let normal = pipeline.cast_ray_and_get_normal(
-                &self.rigid_body_set, &self.collider_set, &ray, 100.0, true, filter,
-            ).map(|(_, isect)| {
-                let n = isect.normal;
-                glam::Vec3::new(n.x, n.y, n.z)
-            }).unwrap_or(glam::Vec3::Y);
-            let abs_x = normal.x.abs();
-            let abs_y = normal.y.abs();
-            let abs_z = normal.z.abs();
-            let snap_normal = if abs_y >= abs_x && abs_y >= abs_z {
-                glam::Vec3::new(0.0, normal.y.signum(), 0.0)
-            } else if abs_x >= abs_y && abs_x >= abs_z {
-                glam::Vec3::new(normal.x.signum(), 0.0, 0.0)
-            } else {
-                glam::Vec3::new(0.0, 0.0, normal.z.signum())
-            };
-            let hit_cube_x = (hit.x - snap_normal.x * 0.001).round();
-            let hit_cube_y = (hit.y - snap_normal.y * 0.001).round();
-            let hit_cube_z = (hit.z - snap_normal.z * 0.001).round();
-            glam::Vec3::new(hit_cube_x, hit_cube_y, hit_cube_z)
-        })
+
+        let (collider_handle, intersection) = self.query_pipeline.cast_ray_and_get_normal(
+            &self.rigid_body_set, &self.collider_set, &ray, 100.0, true, filter,
+        )?;
+
+        let hit = origin + dir * intersection.time_of_impact;
+        let normal = self.collider_set
+            .get(collider_handle)
+            .and_then(|c| {
+                c.parent().and_then(|rb_handle| {
+                    self.rigid_body_set.get(rb_handle).map(|rb| {
+                        let n = rb.position().inverse_transform_vector(&ray.dir);
+                        glam::Vec3::new(n.x, n.y, n.z)
+                    })
+                })
+            })
+            .unwrap_or(glam::Vec3::Y);
+
+        let abs_x = normal.x.abs();
+        let abs_y = normal.y.abs();
+        let abs_z = normal.z.abs();
+        let snap_normal = if abs_y >= abs_x && abs_y >= abs_z {
+            glam::Vec3::new(0.0, normal.y.signum(), 0.0)
+        } else if abs_x >= abs_y && abs_x >= abs_z {
+            glam::Vec3::new(normal.x.signum(), 0.0, 0.0)
+        } else {
+            glam::Vec3::new(0.0, 0.0, normal.z.signum())
+        };
+        let hit_cube_x = (hit.x - snap_normal.x * 0.001).round();
+        let hit_cube_y = (hit.y - snap_normal.y * 0.001).round();
+        let hit_cube_z = (hit.z - snap_normal.z * 0.001).round();
+        let block_pos = glam::Vec3::new(hit_cube_x, hit_cube_y, hit_cube_z);
+        Some((block_pos, snap_normal, hit))
+    }
+
+    pub fn look_at_block(&self) -> Option<glam::Vec3> {
+        self.cast_hit_block().map(|(block_pos, _, _)| block_pos)
     }
 
     pub fn spawn_cube_in_front(&mut self, r: f32, g: f32, b: f32) -> u64 {
-        let cam = &self.camera;
-        let look_x = f32::cos(self.camera_phi) * f32::sin(self.camera_theta);
-        let look_y = f32::sin(self.camera_phi);
-        let look_z = -f32::cos(self.camera_phi) * f32::cos(self.camera_theta);
-        let len = f32::sqrt(look_x * look_x + look_y * look_y + look_z * look_z);
-        let (dir_x, dir_y, dir_z) = if len > 0.0001 {
-            (look_x / len, look_y / len, look_z / len)
-        } else {
-            (0.0, 0.0, -1.0)
-        };
-
-        let origin = glam::Vec3::new(cam.position.x, cam.position.y, cam.position.z);
-        let dir = glam::Vec3::new(dir_x, dir_y, dir_z);
-
-        let ray = Ray::new(
-            point![origin.x, origin.y, origin.z],
-            vector![dir.x, dir.y, dir.z],
-        );
-        let max_toi = 100.0;
-        let solid = true;
-        let filter = QueryFilter::default();
-
-        self.query_pipeline.update(&self.collider_set);
-
-        if let Some((collider_handle, intersection)) = self.query_pipeline.cast_ray_and_get_normal(
-            &self.rigid_body_set,
-            &self.collider_set,
-            &ray,
-            max_toi,
-            solid,
-            filter,
-        ) {
-            let toi = intersection.time_of_impact;
-            let hit_point = origin + dir * toi;
-            let normal = self.collider_set
-                .get(collider_handle)
-                .map(|c| {
-                    if let Some(rb_handle) = c.parent() {
-                        self.rigid_body_set.get(rb_handle)
-                            .map(|rb| {
-                                let n = rb.position().inverse_transform_vector(&ray.dir);
-                                glam::Vec3::new(n.x, n.y, n.z)
-                            })
-                            .unwrap_or_else(|| glam::Vec3::new(dir.x, dir.y, dir.z))
-                    } else {
-                        glam::Vec3::new(dir.x, dir.y, dir.z)
-                    }
-                })
-                .unwrap_or_else(|| glam::Vec3::Y);
-            let abs_x = normal.x.abs();
-            let abs_y = normal.y.abs();
-            let abs_z = normal.z.abs();
-            let snap_normal = if abs_y >= abs_x && abs_y >= abs_z {
-                glam::Vec3::new(0.0, normal.y.signum(), 0.0)
-            } else if abs_x >= abs_y && abs_x >= abs_z {
-                glam::Vec3::new(normal.x.signum(), 0.0, 0.0)
-            } else {
-                glam::Vec3::new(0.0, 0.0, normal.z.signum())
-            };
-            let hit_cube_x = (hit_point.x - snap_normal.x * 0.001).round();
-            let hit_cube_y = (hit_point.y - snap_normal.y * 0.001).round();
-            let hit_cube_z = (hit_point.z - snap_normal.z * 0.001).round();
-            let spawn_x = hit_cube_x + snap_normal.x;
-            let spawn_y = hit_cube_y + snap_normal.y;
-            let spawn_z = hit_cube_z + snap_normal.z;
+        if let Some((block_pos, snap_normal, _hit)) = self.cast_hit_block() {
+            let spawn_x = block_pos.x + snap_normal.x;
+            let spawn_y = block_pos.y + snap_normal.y;
+            let spawn_z = block_pos.z + snap_normal.z;
             return self.add_cube_physics(spawn_x, spawn_y, spawn_z, [r, g, b]);
         }
 
-        if dir_y.abs() < 0.0001 { return 0; }
-        let t = (-1.0 - origin.y) / dir_y;
+        let cam = &self.camera;
+        let look_y = f32::sin(self.camera_phi);
+        if look_y.abs() < 0.0001 { return 0; }
+        let origin = cam.position.y;
+        let t = (-1.0 - origin) / look_y;
         if t <= 0.0 { return 0; }
-        let hit = origin + dir * t;
-        let spawn_x = hit.x.round();
-        let spawn_y = 0.0;
-        let spawn_z = hit.z.round();
-        self.add_cube_physics(spawn_x, spawn_y, spawn_z, [r, g, b])
+        let look_x = f32::cos(self.camera_phi) * f32::sin(self.camera_theta);
+        let look_z = -f32::cos(self.camera_phi) * f32::cos(self.camera_theta);
+        let len = (look_x * look_x + look_y * look_y + look_z * look_z).sqrt();
+        let hit_x = cam.position.x + (look_x / len) * t;
+        let hit_z = cam.position.z + (look_z / len) * t;
+        self.add_cube_physics(hit_x.round(), 0.0, hit_z.round(), [r, g, b])
     }
 
     pub fn add_cube_physics(&mut self, px: f32, py: f32, pz: f32, color: [f32; 3]) -> u64 {
