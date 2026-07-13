@@ -69,6 +69,9 @@ BigInt spawnCubeInFront({
   b: b,
 );
 
+bool destroyLookedBlock({required Scene3D scene}) =>
+    RustLib.instance.api.crateApiSimpleDestroyLookedBlock(scene: scene);
+
 Future<Uint8List> renderScene({
   required Scene3D scene,
   required int width,

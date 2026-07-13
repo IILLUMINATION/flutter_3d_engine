@@ -50,6 +50,7 @@ class _DemoScreenState extends State<DemoScreen> {
   bool _mouseCaptured = false;
 
   int _selectedColorIndex = 0;
+  double _fps = 0.0;
 
   static const List<Color> _palette = [
     Color(0xFFE27F2D),
@@ -122,6 +123,10 @@ class _DemoScreenState extends State<DemoScreen> {
     if (_pressedKeys.contains(PhysicalKeyboardKey.space)) {
       controller.jumpPlayer();
     }
+
+    if (deltaSec > 0.0) {
+      _fps = 1.0 / deltaSec;
+    }
   }
 
   void _spawnCube() {
@@ -134,9 +139,20 @@ class _DemoScreenState extends State<DemoScreen> {
     setState(() => _cubeIds.add(id));
   }
 
+  void _destroyLookedBlock() {
+    if (_controller == null) return;
+    if (_controller!.destroyLookedBlock()) {
+      setState(() {
+        if (_cubeIds.isNotEmpty) _cubeIds.removeLast();
+      });
+    }
+  }
+
   void _onPointerDown(PointerDownEvent event) {
     if (event.buttons == kSecondaryMouseButton) {
       _spawnCube();
+    } else if (event.buttons == kMiddleMouseButton) {
+      _destroyLookedBlock();
     } else if (event.buttons == kPrimaryMouseButton) {
       setState(() => _mouseCaptured = !_mouseCaptured);
     }
@@ -251,6 +267,47 @@ class _DemoScreenState extends State<DemoScreen> {
                     ),
                   ),
                 ),
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  child: Text(
+                    '${_fps.toStringAsFixed(0)} FPS',
+                    style: const TextStyle(color: Colors.white38, fontSize: 11, fontFamily: 'monospace'),
+                  ),
+                ),
+                if (_mouseCaptured)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                          color: const Color(0xAA1E1E22),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(_palette.length, (i) {
+                              final selected = i == _selectedColorIndex;
+                              return Container(
+                                width: selected ? 28 : 24,
+                                height: selected ? 28 : 24,
+                                margin: const EdgeInsets.symmetric(horizontal: 1),
+                                decoration: BoxDecoration(
+                                  color: _palette[i],
+                                  border: Border.all(
+                                    color: selected ? Colors.white : Colors.white30,
+                                    width: selected ? 2.5 : 1,
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
             ],
           ),
         ),

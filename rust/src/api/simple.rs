@@ -52,6 +52,11 @@ pub fn spawn_cube_in_front(scene: &mut Scene3D, r: f32, g: f32, b: f32) -> u64 {
     scene.spawn_cube_in_front(r, g, b)
 }
 
+#[flutter_rust_bridge::frb(sync)]
+pub fn destroy_looked_block(scene: &mut Scene3D) -> bool {
+    scene.destroy_looked_block()
+}
+
 pub fn render_scene(scene: &mut Scene3D, width: u32, height: u32) -> Vec<u8> {
     scene.render_gpu(width, height)
 }

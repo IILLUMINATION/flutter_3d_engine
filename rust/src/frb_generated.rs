@@ -918,6 +918,54 @@ fn wire__crate__api__simple__update_node_transform_impl(
         },
     )
 }
+fn wire__crate__api__simple__destroy_looked_block_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "destroy_looked_block",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_scene = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Scene3D>,
+            >>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let mut api_scene_guard = None;
+                let decode_indices_ =
+                    flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                        flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                            &api_scene, 0, true,
+                        ),
+                    ]);
+                for i in decode_indices_ {
+                    match i {
+                        0 => api_scene_guard = Some(api_scene.lockable_decode_sync_ref_mut()),
+                        _ => unreachable!(),
+                    }
+                }
+                let mut api_scene_guard = api_scene_guard.unwrap();
+                let output_ok = Result::<_, ()>::Ok(crate::api::simple::destroy_looked_block(
+                    &mut *api_scene_guard,
+                ))?;
+                Ok(output_ok)
+            })())
+        },
+    )
+}
 fn wire__crate__api__simple__zoom_camera_impl(
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -1116,6 +1164,7 @@ fn pde_ffi_dispatcher_sync_impl(
         16 => wire__crate__api__simple__spawn_cube_in_front_impl(ptr, rust_vec_len, data_len),
         17 => wire__crate__api__simple__update_node_transform_impl(ptr, rust_vec_len, data_len),
         18 => wire__crate__api__simple__zoom_camera_impl(ptr, rust_vec_len, data_len),
+        19 => wire__crate__api__simple__destroy_looked_block_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

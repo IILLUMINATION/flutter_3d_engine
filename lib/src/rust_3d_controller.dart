@@ -35,4 +35,6 @@ class Rust3DController {
     double g = 0.27,
     double b = 0.0,
   }) => ffi.spawnCubeInFront(scene: _scene, r: r, g: g, b: b);
+
+  bool destroyLookedBlock() => ffi.destroyLookedBlock(scene: _scene);
 }

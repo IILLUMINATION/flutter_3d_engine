@@ -152,6 +152,8 @@ abstract class RustLibApi extends BaseApi {
     required double b,
   });
 
+  bool crateApiSimpleDestroyLookedBlock({required Scene3D scene});
+
   void crateApiSimpleUpdateNodeTransform({
     required Scene3D scene,
     required BigInt nodeId,
@@ -726,6 +728,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ),
     );
   }
+
+  @override
+  bool crateApiSimpleDestroyLookedBlock({required Scene3D scene}) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerScene3D(
+            scene,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 19)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSimpleDestroyLookedBlockConstMeta,
+        argValues: [scene],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSimpleDestroyLookedBlockConstMeta =>
+      const TaskConstMeta(
+        debugName: "destroy_looked_block",
+        argNames: ["scene"],
+      );
 
   TaskConstMeta get kCrateApiSimpleSpawnCubeInFrontConstMeta =>
       const TaskConstMeta(

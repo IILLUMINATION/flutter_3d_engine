@@ -320,6 +320,32 @@ impl Scene3D {
         id
     }
 
+    pub fn destroy_looked_block(&mut self) -> bool {
+        let (block_pos, _, _) = match self.cast_hit_block() {
+            Some(v) => v,
+            None => return false,
+        };
+        let target = glam::Vec3::new(block_pos.x.round(), block_pos.y.round(), block_pos.z.round());
+        if let Some(idx) = self.nodes.iter().position(|n| {
+            let p = n.transform.position;
+            (p.x - target.x).abs() < 0.01 && (p.y - target.y).abs() < 0.01 && (p.z - target.z).abs() < 0.01
+        }) {
+            let node = self.nodes.remove(idx);
+            if let Some(handle) = node.rb_handle {
+                self.rigid_body_set.remove(
+                    handle,
+                    &mut self.island_manager,
+                    &mut self.collider_set,
+                    &mut self.impulse_joint_set,
+                    &mut self.multibody_joint_set,
+                    true,
+                );
+            }
+            return true;
+        }
+        false
+    }
+
     fn reposition_ground(&mut self) {
         const GROUND_TILE: f32 = 1000.0;
         if let Some(player_pos) = self.rigid_body_set
