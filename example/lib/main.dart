@@ -326,13 +326,6 @@ class _FullScreenCanvasState extends State<FullScreenCanvas>
       widget.onTick?.call(ctrl, elapsedSec, deltaSec);
     }
 
-    final renderSize = _renderSize();
-    final width = renderSize.width.toInt();
-    final height = renderSize.height.toInt();
-    if (width != _lastWidth || height != _lastHeight) {
-      _lastWidth = width;
-      _lastHeight = height;
-    }
     renderNativeFrame(scene: scene, width: _lastWidth, height: _lastHeight);
   }
 

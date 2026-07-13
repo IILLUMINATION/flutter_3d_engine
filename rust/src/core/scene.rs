@@ -58,7 +58,6 @@ pub struct Scene3D {
     gpu_width:       u32,
     gpu_height:      u32,
     texture_id:      Option<i64>,
-    iron_engine_handle: Option<i64>,
 
     pub camera_theta:  f32,
     pub camera_phi:    f32,
@@ -116,7 +115,6 @@ impl Scene3D {
             gpu_width:    0,
             gpu_height:   0,
             texture_id:   None,
-            iron_engine_handle: None,
             camera_theta:  0.0,
             camera_phi:    0.0,
             camera_radius: 0.0,
@@ -383,7 +381,6 @@ impl Scene3D {
 
     pub fn init_native_texture(&mut self, engine_handle: i64, width: u32, height: u32) -> i64 {
         println!("[scene] Initializing native irondash texture: {}x{}", width, height);
-        self.iron_engine_handle = Some(engine_handle);
         let iron = crate::core::present::IrondashTexturePresenter::new(engine_handle, width, height);
         let id = iron.texture_id();
         let cpu_sink = crate::core::present::CpuBufferSink::new(width, height);
@@ -402,19 +399,7 @@ impl Scene3D {
     pub fn render_gpu(&mut self, width: u32, height: u32) -> Vec<u8> {
         let size_changed = self.gpu_width != width || self.gpu_height != height;
 
-        if size_changed && self.texture_id.is_some() {
-            if let Some(engine_handle) = self.iron_engine_handle {
-                println!("[scene] Resizing Iron renderer: {}x{} -> {}x{}", self.gpu_width, self.gpu_height, width, height);
-                let iron = crate::core::present::IrondashTexturePresenter::new(engine_handle, width, height);
-                let new_id = iron.texture_id();
-                let cpu_sink = crate::core::present::CpuBufferSink::new(width, height);
-                let renderer = crate::core::renderer_gpu::GpuRenderer::new(width, height, cpu_sink);
-                self.renderer = RendererVariant::Iron { renderer, iron };
-                self.texture_id = Some(new_id);
-                self.gpu_width = width;
-                self.gpu_height = height;
-            }
-        } else if size_changed && self.texture_id.is_none() {
+        if size_changed && self.texture_id.is_none() {
             println!("[scene] Creating/resizing CpuRenderer: {}x{}", width, height);
             let sink = crate::core::present::CpuBufferSink::new(width, height);
             self.renderer = RendererVariant::Cpu(
@@ -424,8 +409,13 @@ impl Scene3D {
             self.gpu_height = height;
         }
 
+        let (rw, rh) = match &self.renderer {
+            RendererVariant::Iron { .. } => (self.gpu_width, self.gpu_height),
+            _ => (width, height),
+        };
+
         let (view_proj, eye) =
-            crate::core::renderer_gpu::build_view_projection_for_scene(self, width, height);
+            crate::core::renderer_gpu::build_view_projection_for_scene(self, rw, rh);
         let model_matrices: Vec<[[f32; 4]; 4]> =
             self.nodes.iter()
                 .map(|n| crate::core::renderer_gpu::build_model_matrix(&n.transform).to_cols_array_2d())
@@ -443,16 +433,16 @@ impl Scene3D {
 
         match &mut self.renderer {
             RendererVariant::Cpu(r) => {
-                r.render_frame(&view_proj, &eye, &model_matrices, &gizmo_lines, &gizmo_colors, width, height, player_x, player_z)
+                r.render_frame(&view_proj, &eye, &model_matrices, &gizmo_lines, &gizmo_colors, rw, rh, player_x, player_z)
             }
             RendererVariant::Iron { renderer, iron } => {
                 let pixels =
-                    renderer.render_frame(&view_proj, &eye, &model_matrices, &gizmo_lines, &gizmo_colors, width, height, player_x, player_z);
+                    renderer.render_frame(&view_proj, &eye, &model_matrices, &gizmo_lines, &gizmo_colors, rw, rh, player_x, player_z);
                 iron.provider().update_frame(&pixels);
                 iron.sendable().mark_frame_available();
                 vec![]
             }
-            RendererVariant::None => vec![0; (width * height * 4) as usize],
+            RendererVariant::None => vec![0; (rw * rh * 4) as usize],
         }
     }
 }
