@@ -168,9 +168,9 @@ impl Scene3D {
     }
 
     pub fn orbit_camera(&mut self, dx: f32, dy: f32) {
-        self.camera_theta += dx * 0.005;
-        self.camera_phi -= dy * 0.005;
-        self.camera_phi = self.camera_phi.clamp(-1.4, 1.4);
+        self.camera_theta += dx * 0.0005;
+        self.camera_phi -= dy * 0.0005;
+        self.camera_phi = self.camera_phi.clamp(-1.2, 1.2);
         self.update_fps_camera();
     }
 
