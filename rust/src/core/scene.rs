@@ -219,26 +219,20 @@ impl Scene3D {
         let origin = glam::Vec3::new(cam.position.x, cam.position.y, cam.position.z);
         let dir = glam::Vec3::new(dir_x, dir_y, dir_z);
         let ray = Ray::new(point![origin.x, origin.y, origin.z], vector![dir.x, dir.y, dir.z]);
-        let filter = QueryFilter::default();
+        let filter = QueryFilter::default().exclude_rigid_body(self.player_body_handle);
 
         self.query_pipeline.update(&self.collider_set);
 
-        let (collider_handle, intersection) = self.query_pipeline.cast_ray_and_get_normal(
+        let (_collider_handle, intersection) = self.query_pipeline.cast_ray_and_get_normal(
             &self.rigid_body_set, &self.collider_set, &ray, 100.0, true, filter,
         )?;
 
         let hit = origin + dir * intersection.time_of_impact;
-        let normal = self.collider_set
-            .get(collider_handle)
-            .and_then(|c| {
-                c.parent().and_then(|rb_handle| {
-                    self.rigid_body_set.get(rb_handle).map(|rb| {
-                        let n = rb.position().inverse_transform_vector(&ray.dir);
-                        glam::Vec3::new(n.x, n.y, n.z)
-                    })
-                })
-            })
-            .unwrap_or(glam::Vec3::Y);
+        let normal = glam::Vec3::new(
+            intersection.normal.x,
+            intersection.normal.y,
+            intersection.normal.z,
+        );
 
         let abs_x = normal.x.abs();
         let abs_y = normal.y.abs();
@@ -258,7 +252,7 @@ impl Scene3D {
     }
 
     pub fn look_at_block(&mut self) -> Option<glam::Vec3> {
-        self.cast_hit_block().map(|(block_pos, _, _)| block_pos)
+        self.cast_hit_block().map(|(block_pos, snap_normal, _)| block_pos + snap_normal)
     }
 
     pub fn spawn_cube_in_front(&mut self, r: f32, g: f32, b: f32) -> u64 {
@@ -266,6 +260,17 @@ impl Scene3D {
             let spawn_x = block_pos.x + snap_normal.x;
             let spawn_y = block_pos.y + snap_normal.y;
             let spawn_z = block_pos.z + snap_normal.z;
+
+            if let Some(player_rb) = self.rigid_body_set.get(self.player_body_handle) {
+                let player_pos = player_rb.translation();
+                let dx = (player_pos.x - spawn_x).abs();
+                let dy = (player_pos.y - spawn_y).abs();
+                let dz = (player_pos.z - spawn_z).abs();
+                if dx < 0.8 && dy < 1.5 && dz < 0.8 {
+                    return 0;
+                }
+            }
+
             return self.add_cube_physics(spawn_x, spawn_y, spawn_z, [r, g, b]);
         }
 
