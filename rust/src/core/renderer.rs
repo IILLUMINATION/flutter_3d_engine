@@ -169,9 +169,6 @@ fn draw_wireframe_cube(buffer: &mut [u8], width: u32, height: u32, node: &Node, 
     }
 }
 
-// ---------------------------------------------------------------------------
-// Unit tests
-// ---------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -206,7 +203,7 @@ mod tests {
     #[test]
     fn project_point_behind_camera_returns_none() {
         let camera = Camera::default();
-        let point = Vector3::new(0.0, 2.0, 10.0); // behind camera (cam looks toward 0,0,0)
+        let point = Vector3::new(0.0, 2.0, 10.0);
         let result = project_point(&point, &camera, 64, 48);
         assert!(result.is_none());
     }

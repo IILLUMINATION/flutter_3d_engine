@@ -7,7 +7,12 @@ import 'package:flutter_rust_3d/src/rust/core/scene.dart';
 import 'rust_3d_controller.dart';
 
 typedef Rust3DOnCreated = void Function(Rust3DController controller);
-typedef Rust3DOnTick = void Function(Rust3DController controller, double elapsedSec, double deltaSec);
+typedef Rust3DOnTick =
+    void Function(
+      Rust3DController controller,
+      double elapsedSec,
+      double deltaSec,
+    );
 
 class Rust3DCanvas extends StatefulWidget {
   final int width;
@@ -86,11 +91,7 @@ class _Rust3DCanvasState extends State<Rust3DCanvas>
     final w = widget.width;
     final h = widget.height;
     if (w > 0 && h > 0) {
-      renderNativeFrame(
-        scene: scene,
-        width: w,
-        height: h,
-      );
+      renderNativeFrame(scene: scene, width: w, height: h);
     }
   }
 

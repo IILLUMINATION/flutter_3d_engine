@@ -125,10 +125,6 @@ fn pad_to_alignment(value: u32, alignment: u32) -> u32 {
     ((value + alignment - 1) / alignment) * alignment
 }
 
-// ---------------------------------------------------------------------------
-// Irondash native texture presenter using SendableTexture
-// ---------------------------------------------------------------------------
-
 pub struct IrondashTexturePresenter {
     sendable: Arc<SendableTexture<BoxedPixelData>>,
     provider: Arc<TexturePayloadProvider>,

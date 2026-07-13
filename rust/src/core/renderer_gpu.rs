@@ -27,42 +27,36 @@ struct Vertex {
 }
 
 const CUBE_VERTICES: [Vertex; 36] = [
-    // front
     Vertex { position: [-0.5, -0.5, 0.5], normal: [0.0, 0.0, 1.0] },
     Vertex { position: [ 0.5, -0.5, 0.5], normal: [0.0, 0.0, 1.0] },
     Vertex { position: [ 0.5,  0.5, 0.5], normal: [0.0, 0.0, 1.0] },
     Vertex { position: [-0.5, -0.5, 0.5], normal: [0.0, 0.0, 1.0] },
     Vertex { position: [ 0.5,  0.5, 0.5], normal: [0.0, 0.0, 1.0] },
     Vertex { position: [-0.5,  0.5, 0.5], normal: [0.0, 0.0, 1.0] },
-    // back
     Vertex { position: [ 0.5, -0.5, -0.5], normal: [0.0, 0.0, -1.0] },
     Vertex { position: [-0.5, -0.5, -0.5], normal: [0.0, 0.0, -1.0] },
     Vertex { position: [-0.5,  0.5, -0.5], normal: [0.0, 0.0, -1.0] },
     Vertex { position: [ 0.5, -0.5, -0.5], normal: [0.0, 0.0, -1.0] },
     Vertex { position: [-0.5,  0.5, -0.5], normal: [0.0, 0.0, -1.0] },
     Vertex { position: [ 0.5,  0.5, -0.5], normal: [0.0, 0.0, -1.0] },
-    // right
     Vertex { position: [ 0.5, -0.5, 0.5], normal: [1.0, 0.0, 0.0] },
     Vertex { position: [ 0.5, -0.5, -0.5], normal: [1.0, 0.0, 0.0] },
     Vertex { position: [ 0.5,  0.5, -0.5], normal: [1.0, 0.0, 0.0] },
     Vertex { position: [ 0.5, -0.5, 0.5], normal: [1.0, 0.0, 0.0] },
     Vertex { position: [ 0.5,  0.5, -0.5], normal: [1.0, 0.0, 0.0] },
     Vertex { position: [ 0.5,  0.5, 0.5], normal: [1.0, 0.0, 0.0] },
-    // left
     Vertex { position: [-0.5, -0.5, -0.5], normal: [-1.0, 0.0, 0.0] },
     Vertex { position: [-0.5, -0.5, 0.5], normal: [-1.0, 0.0, 0.0] },
     Vertex { position: [-0.5,  0.5, 0.5], normal: [-1.0, 0.0, 0.0] },
     Vertex { position: [-0.5, -0.5, -0.5], normal: [-1.0, 0.0, 0.0] },
     Vertex { position: [-0.5,  0.5, 0.5], normal: [-1.0, 0.0, 0.0] },
     Vertex { position: [-0.5,  0.5, -0.5], normal: [-1.0, 0.0, 0.0] },
-    // top
     Vertex { position: [-0.5, 0.5, 0.5], normal: [0.0, 1.0, 0.0] },
     Vertex { position: [ 0.5, 0.5, 0.5], normal: [0.0, 1.0, 0.0] },
     Vertex { position: [ 0.5, 0.5, -0.5], normal: [0.0, 1.0, 0.0] },
     Vertex { position: [-0.5, 0.5, 0.5], normal: [0.0, 1.0, 0.0] },
     Vertex { position: [ 0.5, 0.5, -0.5], normal: [0.0, 1.0, 0.0] },
     Vertex { position: [-0.5, 0.5, -0.5], normal: [0.0, 1.0, 0.0] },
-    // bottom
     Vertex { position: [-0.5, -0.5, -0.5], normal: [0.0, -1.0, 0.0] },
     Vertex { position: [ 0.5, -0.5, -0.5], normal: [0.0, -1.0, 0.0] },
     Vertex { position: [ 0.5, -0.5, 0.5], normal: [0.0, -1.0, 0.0] },
@@ -251,7 +245,6 @@ impl<S: FrameSink> GpuRenderer<S> {
             cache: None,
         });
 
-        // --- grid pipeline ---
         let grid_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("grid pipeline layout"),
             bind_group_layouts: &[Some(&camera_bg_layout)],
@@ -523,19 +516,16 @@ impl<S: FrameSink> GpuRenderer<S> {
                 multiview_mask: None,
             });
 
-            // draw ground grid (dynamic, follows player)
             rpass.set_pipeline(&self.grid_pipeline);
             rpass.set_bind_group(0, &self.camera_bind_group, &[]);
             rpass.set_vertex_buffer(0, self.grid_buffer.slice(..));
             rpass.draw(0..grid_vcount, 0..1);
 
-            // draw gizmo arrows with colors
             if gizmo_vert_count > 0 {
                 rpass.set_vertex_buffer(0, self.gizmo_buffer.slice(..));
                 rpass.draw(0..gizmo_vert_count, 0..1);
             }
 
-            // draw all cubes in one instanced call
             if num_instances > 0 {
                 rpass.set_pipeline(&self.render_pipeline);
                 rpass.set_bind_group(0, &self.camera_bind_group, &[]);

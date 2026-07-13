@@ -80,17 +80,38 @@ class _DemoScreenState extends State<DemoScreen> {
   bool _onKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
       switch (event.physicalKey) {
-        case PhysicalKeyboardKey.digit1: setState(() => _selectedColorIndex = 0); return true;
-        case PhysicalKeyboardKey.digit2: setState(() => _selectedColorIndex = 1); return true;
-        case PhysicalKeyboardKey.digit3: setState(() => _selectedColorIndex = 2); return true;
-        case PhysicalKeyboardKey.digit4: setState(() => _selectedColorIndex = 3); return true;
-        case PhysicalKeyboardKey.digit5: setState(() => _selectedColorIndex = 4); return true;
-        case PhysicalKeyboardKey.digit6: setState(() => _selectedColorIndex = 5); return true;
-        case PhysicalKeyboardKey.digit7: setState(() => _selectedColorIndex = 6); return true;
-        case PhysicalKeyboardKey.digit8: setState(() => _selectedColorIndex = 7); return true;
-        case PhysicalKeyboardKey.digit9: setState(() => _selectedColorIndex = 8); return true;
-        case PhysicalKeyboardKey.digit0: setState(() => _selectedColorIndex = 9); return true;
-        default: _pressedKeys.add(event.physicalKey);
+        case PhysicalKeyboardKey.digit1:
+          setState(() => _selectedColorIndex = 0);
+          return true;
+        case PhysicalKeyboardKey.digit2:
+          setState(() => _selectedColorIndex = 1);
+          return true;
+        case PhysicalKeyboardKey.digit3:
+          setState(() => _selectedColorIndex = 2);
+          return true;
+        case PhysicalKeyboardKey.digit4:
+          setState(() => _selectedColorIndex = 3);
+          return true;
+        case PhysicalKeyboardKey.digit5:
+          setState(() => _selectedColorIndex = 4);
+          return true;
+        case PhysicalKeyboardKey.digit6:
+          setState(() => _selectedColorIndex = 5);
+          return true;
+        case PhysicalKeyboardKey.digit7:
+          setState(() => _selectedColorIndex = 6);
+          return true;
+        case PhysicalKeyboardKey.digit8:
+          setState(() => _selectedColorIndex = 7);
+          return true;
+        case PhysicalKeyboardKey.digit9:
+          setState(() => _selectedColorIndex = 8);
+          return true;
+        case PhysicalKeyboardKey.digit0:
+          setState(() => _selectedColorIndex = 9);
+          return true;
+        default:
+          _pressedKeys.add(event.physicalKey);
       }
     } else if (event is KeyUpEvent) {
       _pressedKeys.remove(event.physicalKey);
@@ -103,7 +124,11 @@ class _DemoScreenState extends State<DemoScreen> {
     controller.initDefaultCamera();
   }
 
-  void _onTick(Rust3DController controller, double elapsedSec, double deltaSec) {
+  void _onTick(
+    Rust3DController controller,
+    double elapsedSec,
+    double deltaSec,
+  ) {
     controller.physicsStep(deltaSec.clamp(0.0, 0.05));
 
     double dx = 0.0;
@@ -163,7 +188,9 @@ class _DemoScreenState extends State<DemoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cursor = _mouseCaptured ? SystemMouseCursors.none : SystemMouseCursors.basic;
+    final cursor = _mouseCaptured
+        ? SystemMouseCursors.none
+        : SystemMouseCursors.basic;
 
     return Scaffold(
       body: MouseRegion(
@@ -177,9 +204,7 @@ class _DemoScreenState extends State<DemoScreen> {
                 child: FullScreenCanvas(onCreated: _onCreated, onTick: _onTick),
               ),
               if (_mouseCaptured)
-                const Center(
-                  child: IgnorePointer(child: Crosshair()),
-                ),
+                const Center(child: IgnorePointer(child: Crosshair())),
               if (!_mouseCaptured)
                 Positioned.fill(
                   child: Center(
@@ -187,7 +212,11 @@ class _DemoScreenState extends State<DemoScreen> {
                       child: Text(
                         'Click — Capture / release mouse\nRight-click — Spawn cube',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white54, fontSize: 13, height: 1.6),
+                        style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 13,
+                          height: 1.6,
+                        ),
                       ),
                     ),
                   ),
@@ -207,66 +236,100 @@ class _DemoScreenState extends State<DemoScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text('FPS Sandbox',
-                          style: TextStyle(color: Color(0xFFE27F2D), fontWeight: FontWeight.w600, fontSize: 13),
+                        Text(
+                          'FPS Sandbox',
+                          style: TextStyle(
+                            color: Color(0xFFE27F2D),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
                         ),
                         SizedBox(height: 10),
-                        Text('WASD  —  Move', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                        Text(
+                          'WASD  —  Move',
+                          style: TextStyle(color: Colors.white54, fontSize: 10),
+                        ),
                         SizedBox(height: 2),
-                        Text('Space  —  Jump', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                        Text(
+                          'Space  —  Jump',
+                          style: TextStyle(color: Colors.white54, fontSize: 10),
+                        ),
                         SizedBox(height: 2),
-                        Text('Click  —  Capture mouse', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                        Text(
+                          'Click  —  Capture mouse',
+                          style: TextStyle(color: Colors.white54, fontSize: 10),
+                        ),
                         SizedBox(height: 2),
-                        Text('R-click  —  Spawn cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                        Text(
+                          'R-click  —  Spawn cube',
+                          style: TextStyle(color: Colors.white54, fontSize: 10),
+                        ),
                         SizedBox(height: 2),
-                        Text('M-click  —  Destroy cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                        Text(
+                          'M-click  —  Destroy cube',
+                          style: TextStyle(color: Colors.white54, fontSize: 10),
+                        ),
                         SizedBox(height: 2),
-                        Text('1-9, 0  —  Select color', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                        Text(
+                          '1-9, 0  —  Select color',
+                          style: TextStyle(color: Colors.white54, fontSize: 10),
+                        ),
                       ],
                     ),
                   ),
                 ),
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Text(
-                    '${_fps.toStringAsFixed(0)} FPS',
-                    style: const TextStyle(color: Colors.white38, fontSize: 11, fontFamily: 'monospace'),
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Text(
+                  '${_fps.toStringAsFixed(0)} FPS',
+                  style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 11,
+                    fontFamily: 'monospace',
                   ),
                 ),
-                if (_mouseCaptured)
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                          color: const Color(0xAA1E1E22),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: List.generate(_palette.length, (i) {
-                              final selected = i == _selectedColorIndex;
-                              return Container(
-                                width: selected ? 28 : 24,
-                                height: selected ? 28 : 24,
-                                margin: const EdgeInsets.symmetric(horizontal: 1),
-                                decoration: BoxDecoration(
-                                  color: _palette[i],
-                                  border: Border.all(
-                                    color: selected ? Colors.white : Colors.white30,
-                                    width: selected ? 2.5 : 1,
-                                  ),
+              ),
+              if (_mouseCaptured)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(4),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 4,
+                        ),
+                        color: const Color(0xAA1E1E22),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: List.generate(_palette.length, (i) {
+                            final selected = i == _selectedColorIndex;
+                            return Container(
+                              width: selected ? 28 : 24,
+                              height: selected ? 28 : 24,
+                              margin: const EdgeInsets.symmetric(horizontal: 1),
+                              decoration: BoxDecoration(
+                                color: _palette[i],
+                                border: Border.all(
+                                  color: selected
+                                      ? Colors.white
+                                      : Colors.white30,
+                                  width: selected ? 2.5 : 1,
                                 ),
-                              );
-                            }),
-                          ),
+                              ),
+                            );
+                          }),
                         ),
                       ),
                     ),
                   ),
+                ),
             ],
           ),
         ),
@@ -365,7 +428,9 @@ class _FullScreenCanvasState extends State<FullScreenCanvas>
   Widget build(BuildContext context) {
     final textureId = _textureId;
     if (textureId == null) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      );
     }
     return Texture(textureId: textureId);
   }
@@ -379,9 +444,7 @@ class Crosshair extends StatelessWidget {
     return SizedBox(
       width: 20,
       height: 20,
-      child: CustomPaint(
-        painter: _CrosshairPainter(),
-      ),
+      child: CustomPaint(painter: _CrosshairPainter()),
     );
   }
 }
