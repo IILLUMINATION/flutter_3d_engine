@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="animation.gif" width="720" alt="Flutter 3D Engine demo"/>
+  <img src="demo.gif" width="720" alt="Flutter 3D Engine demo"/>
 </p>
 
 <p align="center">
@@ -12,13 +12,13 @@
 
 ---
 
-# 🎮 Flutter 3D Engine
+# Flutter 3D Engine
 
 GPU-accelerated 3D engine for Flutter. Renders through **Rust + wgpu** directly into an **irondash** native texture — zero pixel copies into Dart.
 
-> 👉 [Demo app](example/) — a Minecraft-style FPS sandbox showing what the engine can do.
+See the [demo app](example/) — a Minecraft-style FPS sandbox.
 
-## 📦 Stack
+## Stack
 
 | Layer | Tech |
 |---|---|
@@ -27,7 +27,7 @@ GPU-accelerated 3D engine for Flutter. Renders through **Rust + wgpu** directly 
 | Texture bridge | **irondash** — GPU buffer visible to Flutter, no copies |
 | FFI | **flutter_rust_bridge** 2.12 |
 
-## 🚀 Quick start
+## Quick start
 
 ```bash
 git clone https://github.com/IILLUMINATION/flutter_3d_engine
@@ -36,7 +36,7 @@ flutter_rust_bridge_codegen generate
 cd example && flutter run -d linux
 ```
 
-## 📝 Minimal usage
+## Minimal usage
 
 ```dart
 final scene = await createScene();
@@ -54,7 +54,7 @@ void onTick(double dt) {
 ctrl.spawnCubeInFront(r: 1.0, g: 0.27, b: 0.0);
 ```
 
-## 🔧 API
+## API
 
 ```dart
 // Camera
@@ -74,20 +74,20 @@ final id = await initNativeTexture(scene, engineHandle, width, height);
 renderNativeFrame(scene, width, height);
 ```
 
-## 🏗️ How it works
+## How it works
 
 1. An **irondash texture** is created — Flutter gets its ID, shows it with `Texture(textureId: id)`.
 2. Rust spins up a **wgpu device**, renders the scene straight into that same texture. No pixels travel through Dart.
 3. **Rapier3D** steps the physics each frame. The camera rides on the player's rigid body.
-4. **Raycasting** finds the block under the crosshair. Surface normals snap placement to the grid, Minecraft-style.
+4. **Raycasting** finds the block under the crosshair. Surface normals snap placement to the grid.
 
-## ✅ Status
+## Status
 
-- **Stable:** rendering, physics, camera, block spawn/destroy, 31 unit tests passing
-- **Planned:** pointer lock, textures, chunk generation, model loading
+- Stable: rendering, physics, camera, block spawn/destroy, 31 unit tests
+- Planned: pointer lock, textures, chunk generation, model loading
 
-## 📄 License
+## License
 
-MIT — use it, fork it, build on it. Just keep the copyright notice and attribution.
+MIT — use it, fork it, build on it. Keep the copyright notice and attribution.
 
-Made with ☕ by [IILLUMINATION](https://github.com/IILLUMINATION).
+By [IILLUMINATION](https://github.com/IILLUMINATION).
