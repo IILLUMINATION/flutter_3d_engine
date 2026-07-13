@@ -205,6 +205,47 @@ impl Scene3D {
         }
     }
 
+    pub fn look_at_block(&self) -> Option<glam::Vec3> {
+        let cam = &self.camera;
+        let look_x = f32::cos(self.camera_phi) * f32::sin(self.camera_theta);
+        let look_y = f32::sin(self.camera_phi);
+        let look_z = -f32::cos(self.camera_phi) * f32::cos(self.camera_theta);
+        let len = f32::sqrt(look_x * look_x + look_y * look_y + look_z * look_z);
+        let (dir_x, dir_y, dir_z) = if len > 0.0001 {
+            (look_x / len, look_y / len, look_z / len)
+        } else {
+            return None;
+        };
+        let origin = glam::Vec3::new(cam.position.x, cam.position.y, cam.position.z);
+        let dir = glam::Vec3::new(dir_x, dir_y, dir_z);
+        let ray = Ray::new(point![origin.x, origin.y, origin.z], vector![dir.x, dir.y, dir.z]);
+        let filter = QueryFilter::default();
+        let pipeline = &self.query_pipeline;
+        pipeline.cast_ray(&self.rigid_body_set, &self.collider_set, &ray, 100.0, true, filter).map(|(_, toi)| {
+            let hit = origin + dir * toi;
+            let normal = pipeline.cast_ray_and_get_normal(
+                &self.rigid_body_set, &self.collider_set, &ray, 100.0, true, filter,
+            ).map(|(_, isect)| {
+                let n = isect.normal;
+                glam::Vec3::new(n.x, n.y, n.z)
+            }).unwrap_or(glam::Vec3::Y);
+            let abs_x = normal.x.abs();
+            let abs_y = normal.y.abs();
+            let abs_z = normal.z.abs();
+            let snap_normal = if abs_y >= abs_x && abs_y >= abs_z {
+                glam::Vec3::new(0.0, normal.y.signum(), 0.0)
+            } else if abs_x >= abs_y && abs_x >= abs_z {
+                glam::Vec3::new(normal.x.signum(), 0.0, 0.0)
+            } else {
+                glam::Vec3::new(0.0, 0.0, normal.z.signum())
+            };
+            let hit_cube_x = (hit.x - snap_normal.x * 0.001).round();
+            let hit_cube_y = (hit.y - snap_normal.y * 0.001).round();
+            let hit_cube_z = (hit.z - snap_normal.z * 0.001).round();
+            glam::Vec3::new(hit_cube_x, hit_cube_y, hit_cube_z)
+        })
+    }
+
     pub fn spawn_cube_in_front(&mut self, r: f32, g: f32, b: f32) -> u64 {
         let cam = &self.camera;
         let look_x = f32::cos(self.camera_phi) * f32::sin(self.camera_theta);
@@ -424,8 +465,30 @@ impl Scene3D {
                 .collect();
         let colors: Vec<[f32; 3]> = self.nodes.iter().map(|n| n.color).collect();
 
-        let gizmo_lines: Vec<([f32; 3], [f32; 3])> = vec![];
-        let gizmo_colors: [[f32; 3]; 3] = [[0.0; 3]; 3];
+        let mut gizmo_lines: Vec<([f32; 3], [f32; 3])> = vec![];
+        let gizmo_colors: [[f32; 3]; 3] = [[1.0; 3]; 3];
+
+        if let Some(center) = self.look_at_block() {
+            let h = 0.51;
+            let cx = center.x;
+            let cy = center.y;
+            let cz = center.z;
+            let edges: [([f32; 3], [f32; 3]); 12] = [
+                ([cx - h, cy - h, cz - h], [cx + h, cy - h, cz - h]),
+                ([cx - h, cy - h, cz + h], [cx + h, cy - h, cz + h]),
+                ([cx - h, cy + h, cz - h], [cx + h, cy + h, cz - h]),
+                ([cx - h, cy + h, cz + h], [cx + h, cy + h, cz + h]),
+                ([cx - h, cy - h, cz - h], [cx - h, cy + h, cz - h]),
+                ([cx + h, cy - h, cz - h], [cx + h, cy + h, cz - h]),
+                ([cx - h, cy - h, cz + h], [cx - h, cy + h, cz + h]),
+                ([cx + h, cy - h, cz + h], [cx + h, cy + h, cz + h]),
+                ([cx - h, cy - h, cz - h], [cx - h, cy - h, cz + h]),
+                ([cx + h, cy - h, cz - h], [cx + h, cy - h, cz + h]),
+                ([cx - h, cy + h, cz - h], [cx - h, cy + h, cz + h]),
+                ([cx + h, cy + h, cz - h], [cx + h, cy + h, cz + h]),
+            ];
+            gizmo_lines = edges.to_vec();
+        }
 
         let (player_x, player_z) = self.rigid_body_set.get(self.player_body_handle)
             .map(|rb| {
