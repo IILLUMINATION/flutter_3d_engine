@@ -150,6 +150,9 @@ class _DemoScreenState extends State<DemoScreen> {
   @override
   Widget build(BuildContext context) {
     final cursor = _mouseCaptured ? SystemMouseCursors.none : SystemMouseCursors.basic;
+    final cubesText = '${_cubeIds.length}';
+    final palette = _palette;
+    final idx = _selectedColorIndex;
 
     return Scaffold(
       body: MouseRegion(
@@ -158,18 +161,13 @@ class _DemoScreenState extends State<DemoScreen> {
           onPointerDown: _onPointerDown,
           onPointerHover: _onPointerHover,
           child: Stack(
-            children: [
+            children: <Widget>[
               Positioned.fill(
-                child: FullScreenCanvas(
-                  onCreated: _onCreated,
-                  onTick: _onTick,
-                ),
+                child: FullScreenCanvas(onCreated: _onCreated, onTick: _onTick),
               ),
               if (_mouseCaptured)
                 const Center(
-                  child: IgnorePointer(
-                    child: Crosshair(),
-                  ),
+                  child: IgnorePointer(child: Crosshair()),
                 ),
               if (!_mouseCaptured)
                 Positioned.fill(
@@ -202,19 +200,51 @@ class _DemoScreenState extends State<DemoScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const Text('FPS Sandbox',
+                          children: <Widget>[
+                            const Text(
+                              'FPS Sandbox',
                               textAlign: TextAlign.center,
                               style: TextStyle(color: Color(0xFFE27F2D), fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 0.5),
                             ),
                             const SizedBox(height: 14),
                             const Divider(color: Colors.white10, height: 1, thickness: 1),
                             const SizedBox(height: 12),
-                            _infoRow('Cubes Count', '${_cubeIds.length}', bold: true),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Cubes Count', style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11)),
+                                Text(cubesText, style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 11, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                              ],
+                            ),
                             const SizedBox(height: 12),
                             const Divider(color: Colors.white10, height: 1, thickness: 1),
                             const SizedBox(height: 12),
-                            _controlsRow(),
+                            const Text('WASD — Move', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                            const SizedBox(height: 2),
+                            const Text('Space — Jump', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                            const SizedBox(height: 2),
+                            const Text('Click — Capture/release mouse', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                            const SizedBox(height: 2),
+                            const Text('Right-click — Spawn cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                            const SizedBox(height: 2),
+                            const Text('1-9, 0 — Select color', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: List.generate(palette.length, (i) {
+                                return Container(
+                                  width: 14,
+                                  height: 14,
+                                  margin: const EdgeInsets.only(right: 3),
+                                  decoration: BoxDecoration(
+                                    color: palette[i],
+                                    border: Border.all(
+                                      color: i == idx ? Colors.white : Colors.white24,
+                                      width: i == idx ? 2 : 1,
+                                    ),
+                                  ),
+                                );
+                              }),
+                            ),
                           ],
                         ),
                       ),
@@ -225,47 +255,6 @@ class _DemoScreenState extends State<DemoScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _infoRow(String label, String value, {bool bold = false}) {
-    return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Text(label, style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 11)),
-      Text(value, style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 11, fontFamily: 'monospace', fontWeight: bold ? FontWeight.bold : FontWeight.w400)),
-    ]);
-  }
-
-  Widget _controlsRow() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('WASD — Move', style: TextStyle(color: Colors.white54, fontSize: 10)),
-        const SizedBox(height: 2),
-        const Text('Space — Jump', style: TextStyle(color: Colors.white54, fontSize: 10)),
-        const SizedBox(height: 2),
-        const Text('Click — Capture/release mouse', style: TextStyle(color: Colors.white54, fontSize: 10)),
-        const SizedBox(height: 2),
-        const Text('Right-click — Spawn cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
-        const SizedBox(height: 2),
-        const Text('1-9, 0 — Select color', style: TextStyle(color: Colors.white54, fontSize: 10)),
-        const SizedBox(height: 6),
-        Row(
-          children: List.generate(_palette.length, (i) {
-            final selected = i == _selectedColorIndex;
-            return Container(
-              width: 14, height: 14,
-              margin: const EdgeInsets.only(right: 3),
-              decoration: BoxDecoration(
-                color: _palette[i],
-                border: Border.all(
-                  color: selected ? Colors.white : Colors.white24,
-                  width: selected ? 2 : 1,
-                ),
-              ),
-            );
-          }),
-        ),
-      ],
     );
   }
 }

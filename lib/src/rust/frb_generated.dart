@@ -145,7 +145,12 @@ abstract class RustLibApi extends BaseApi {
     required double fov,
   });
 
-  BigInt crateApiSimpleSpawnCubeInFront({required Scene3D scene});
+  BigInt crateApiSimpleSpawnCubeInFront({
+    required Scene3D scene,
+    required double r,
+    required double g,
+    required double b,
+  });
 
   void crateApiSimpleUpdateNodeTransform({
     required Scene3D scene,
@@ -692,7 +697,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  BigInt crateApiSimpleSpawnCubeInFront({required Scene3D scene}) {
+  BigInt crateApiSimpleSpawnCubeInFront({
+    required Scene3D scene,
+    required double r,
+    required double g,
+    required double b,
+  }) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
@@ -701,6 +711,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             scene,
             serializer,
           );
+          sse_encode_f_32(r, serializer);
+          sse_encode_f_32(g, serializer);
+          sse_encode_f_32(b, serializer);
           return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
         },
         codec: SseCodec(
@@ -708,7 +721,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiSimpleSpawnCubeInFrontConstMeta,
-        argValues: [scene],
+        argValues: [scene, r, g, b],
         apiImpl: this,
       ),
     );
