@@ -270,17 +270,22 @@ impl Scene3D {
         }
 
         let cam = &self.camera;
-        let look_y = f32::sin(self.camera_phi);
-        if look_y.abs() < 0.0001 { return 0; }
-        let origin = cam.position.y;
-        let t = (-1.0 - origin) / look_y;
-        if t <= 0.0 { return 0; }
         let look_x = f32::cos(self.camera_phi) * f32::sin(self.camera_theta);
+        let look_y = f32::sin(self.camera_phi);
         let look_z = -f32::cos(self.camera_phi) * f32::cos(self.camera_theta);
         let len = (look_x * look_x + look_y * look_y + look_z * look_z).sqrt();
-        let hit_x = cam.position.x + (look_x / len) * t;
-        let hit_z = cam.position.z + (look_z / len) * t;
-        self.add_cube_physics(hit_x.round(), 0.0, hit_z.round(), [r, g, b])
+        let dir_y = if len > 0.0001 { look_y / len } else { return 0; };
+        if dir_y.abs() < 0.0001 { return 0; }
+        let t = (-1.0 - cam.position.y) / dir_y;
+        if t <= 0.0 { return 0; }
+        let dir_x = look_x / len;
+        let dir_z = look_z / len;
+        self.add_cube_physics(
+            (cam.position.x + dir_x * t).round(),
+            0.0,
+            (cam.position.z + dir_z * t).round(),
+            [r, g, b],
+        )
     }
 
     pub fn add_cube_physics(&mut self, px: f32, py: f32, pz: f32, color: [f32; 3]) -> u64 {
