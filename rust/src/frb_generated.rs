@@ -818,6 +818,9 @@ fn wire__crate__api__simple__spawn_cube_in_front_impl(
             let api_scene = <RustOpaqueMoi<
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Scene3D>,
             >>::sse_decode(&mut deserializer);
+            let api_r = <f32>::sse_decode(&mut deserializer);
+            let api_g = <f32>::sse_decode(&mut deserializer);
+            let api_b = <f32>::sse_decode(&mut deserializer);
             deserializer.end();
             transform_result_sse::<_, ()>((move || {
                 let mut api_scene_guard = None;
@@ -836,6 +839,9 @@ fn wire__crate__api__simple__spawn_cube_in_front_impl(
                 let mut api_scene_guard = api_scene_guard.unwrap();
                 let output_ok = Result::<_, ()>::Ok(crate::api::simple::spawn_cube_in_front(
                     &mut *api_scene_guard,
+                    api_r,
+                    api_g,
+                    api_b,
                 ))?;
                 Ok(output_ok)
             })())

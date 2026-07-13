@@ -30,5 +30,9 @@ class Rust3DController {
 
   void jumpPlayer() => ffi.jumpPlayer(scene: _scene);
 
-  BigInt spawnCubeInFront() => ffi.spawnCubeInFront(scene: _scene);
+  BigInt spawnCubeInFront({
+    double r = 1.0,
+    double g = 0.27,
+    double b = 0.0,
+  }) => ffi.spawnCubeInFront(scene: _scene, r: r, g: g, b: b);
 }

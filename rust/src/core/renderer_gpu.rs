@@ -8,7 +8,16 @@ const SHADER_SOURCE: &str = include_str!("../shader.wgsl");
 const MAX_INSTANCES: u32 = 500;
 const MAX_GRID_VERTS: u32 = 2500;
 const MAX_GIZMO_VERTS: u32 = 256;
+const INSTANCE_DATA_SIZE: u64 = 80;
 const GRID_VERTEX_SIZE: u64 = 24;
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+struct InstanceData {
+    model: [[f32; 4]; 4],
+    color: [f32; 3],
+    _pad: f32,
+}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -183,7 +192,7 @@ impl<S: FrameSink> GpuRenderer<S> {
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: false,
-                        min_binding_size: std::num::NonZeroU64::new((MAX_INSTANCES as u64) * 64),
+                        min_binding_size: std::num::NonZeroU64::new((MAX_INSTANCES as u64) * INSTANCE_DATA_SIZE),
                     },
                     count: None,
                 }],
@@ -321,7 +330,7 @@ impl<S: FrameSink> GpuRenderer<S> {
 
         let models_storage_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("models storage"),
-            size: (MAX_INSTANCES as u64) * 64,
+            size: (MAX_INSTANCES as u64) * INSTANCE_DATA_SIZE,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -428,6 +437,7 @@ impl<S: FrameSink> GpuRenderer<S> {
         view_proj: &glam::Mat4,
         eye: &glam::Vec3,
         model_matrices: &[[[f32; 4]; 4]],
+        colors: &[[f32; 3]],
         gizmo_lines: &[([f32; 3], [f32; 3])],
         gizmo_colors: &[[f32; 3]; 3],
         width: u32,
@@ -451,10 +461,14 @@ impl<S: FrameSink> GpuRenderer<S> {
         let num_instances = model_matrices.len().min(MAX_INSTANCES as usize) as u32;
 
         if num_instances > 0 {
+            let instances: Vec<InstanceData> = model_matrices.iter()
+                .zip(colors.iter())
+                .map(|(m, c)| InstanceData { model: *m, color: *c, _pad: 0.0 })
+                .collect();
             self.queue.write_buffer(
                 &self.models_storage_buffer,
                 0,
-                bytemuck::cast_slice(model_matrices),
+                bytemuck::cast_slice(&instances),
             );
         }
 

@@ -14,8 +14,7 @@ pub fn add_cube(
     x: f32, y: f32, z: f32,
     r: f32, g: f32, b: f32,
 ) -> u64 {
-    let _color = r * r + g * g + b * b;
-    scene.add_cube_physics(x, y, z)
+    scene.add_cube_physics(x, y, z, [r, g, b])
 }
 
 #[flutter_rust_bridge::frb(sync)]
@@ -49,8 +48,8 @@ pub fn jump_player(scene: &mut Scene3D) {
 }
 
 #[flutter_rust_bridge::frb(sync)]
-pub fn spawn_cube_in_front(scene: &mut Scene3D) -> u64 {
-    scene.spawn_cube_in_front()
+pub fn spawn_cube_in_front(scene: &mut Scene3D, r: f32, g: f32, b: f32) -> u64 {
+    scene.spawn_cube_in_front(r, g, b)
 }
 
 pub fn render_scene(scene: &mut Scene3D, width: u32, height: u32) -> Vec<u8> {

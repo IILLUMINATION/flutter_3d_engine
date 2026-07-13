@@ -49,6 +49,23 @@ class _DemoScreenState extends State<DemoScreen> {
   final Set<PhysicalKeyboardKey> _pressedKeys = {};
   bool _mouseCaptured = false;
 
+  int _selectedColorIndex = 0;
+
+  static const List<Color> _palette = [
+    Color(0xFFE27F2D),
+    Color(0xFF4CAF50),
+    Color(0xFF2196F3),
+    Color(0xFFF44336),
+    Color(0xFFFFEB3B),
+    Color(0xFFFFFFFF),
+    Color(0xFF000000),
+    Color(0xFF9C27B0),
+    Color(0xFFFF9800),
+    Color(0xFF795548),
+  ];
+
+  Color get _selectedColor => _palette[_selectedColorIndex];
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +80,25 @@ class _DemoScreenState extends State<DemoScreen> {
 
   bool _onKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
+      for (int digit = 1; digit <= 9; digit++) {
+        if (event.physicalKey == PhysicalKeyboardKey.values.firstWhere(
+          (k) => k.debugName == 'Digit$digit',
+          orElse: () => PhysicalKeyboardKey.unknown,
+        )) {
+          if (PhysicalKeyboardKey.unknown == PhysicalKeyboardKey.values.firstWhere(
+            (k) => k.debugName == 'Digit$digit',
+            orElse: () => PhysicalKeyboardKey.unknown,
+          )) {
+            continue;
+          }
+          setState(() => _selectedColorIndex = digit - 1);
+          return true;
+        }
+      }
+      if (event.physicalKey == PhysicalKeyboardKey.digit0) {
+        setState(() => _selectedColorIndex = 9);
+        return true;
+      }
       _pressedKeys.add(event.physicalKey);
     } else if (event is KeyUpEvent) {
       _pressedKeys.remove(event.physicalKey);
@@ -99,10 +135,22 @@ class _DemoScreenState extends State<DemoScreen> {
     setState(() => _mouseCaptured = !_mouseCaptured);
   }
 
-  void _onSecondaryTap() {
+  void _spawnCube() {
     if (_controller == null) return;
-    final id = _controller!.spawnCubeInFront();
+    final c = _selectedColor;
+    final r = c.r / 255.0;
+    final g = c.g / 255.0;
+    final b = c.b / 255.0;
+    final id = _controller!.spawnCubeInFront(r: r, g: g, b: b);
     setState(() => _cubeIds.add(id));
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    if (event.buttons == kSecondaryButton) {
+      _spawnCube();
+    } else if (event.buttons == kPrimaryButton) {
+      setState(() => _mouseCaptured = !_mouseCaptured);
+    }
   }
 
   void _onPointerHover(PointerHoverEvent event) {
@@ -117,12 +165,10 @@ class _DemoScreenState extends State<DemoScreen> {
     return Scaffold(
       body: MouseRegion(
         cursor: cursor,
-        child: GestureDetector(
-          onTap: _onTap,
-          onSecondaryTap: _onSecondaryTap,
-          child: Listener(
-            onPointerHover: _onPointerHover,
-            child: Stack(
+        child: Listener(
+          onPointerDown: _onPointerDown,
+          onPointerHover: _onPointerHover,
+          child: Stack(
               children: [
                 Positioned.fill(
                   child: FullScreenCanvas(
@@ -211,16 +257,35 @@ class _DemoScreenState extends State<DemoScreen> {
   }
 
   Widget _controlsRow() {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('WASD — Move', style: TextStyle(color: Colors.white54, fontSize: 10)),
-        SizedBox(height: 2),
-        Text('Space — Jump', style: TextStyle(color: Colors.white54, fontSize: 10)),
-        SizedBox(height: 2),
-        Text('Click — Capture/release mouse', style: TextStyle(color: Colors.white54, fontSize: 10)),
-        SizedBox(height: 2),
-        Text('Right-click — Spawn cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
+        const Text('WASD — Move', style: TextStyle(color: Colors.white54, fontSize: 10)),
+        const SizedBox(height: 2),
+        const Text('Space — Jump', style: TextStyle(color: Colors.white54, fontSize: 10)),
+        const SizedBox(height: 2),
+        const Text('Click — Capture/release mouse', style: TextStyle(color: Colors.white54, fontSize: 10)),
+        const SizedBox(height: 2),
+        const Text('Right-click — Spawn cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
+        const SizedBox(height: 2),
+        const Text('1-9, 0 — Select color', style: TextStyle(color: Colors.white54, fontSize: 10)),
+        const SizedBox(height: 6),
+        Row(
+          children: List.generate(_palette.length, (i) {
+            final selected = i == _selectedColorIndex;
+            return Container(
+              width: 14, height: 14,
+              margin: const EdgeInsets.only(right: 3),
+              decoration: BoxDecoration(
+                color: _palette[i],
+                border: Border.all(
+                  color: selected ? Colors.white : Colors.white24,
+                  width: selected ? 2 : 1,
+                ),
+              ),
+            );
+          }),
+        ),
       ],
     );
   }

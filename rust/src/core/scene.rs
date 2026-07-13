@@ -24,6 +24,7 @@ pub struct Node {
     pub transform: Transform,
     pub mesh_id:   Option<u64>,
     pub rb_handle: Option<RigidBodyHandle>,
+    pub color:     [f32; 3],
 }
 
 type CpuRenderer = crate::core::renderer_gpu::GpuRenderer<crate::core::present::CpuBufferSink>;
@@ -204,7 +205,7 @@ impl Scene3D {
         }
     }
 
-    pub fn spawn_cube_in_front(&mut self) -> u64 {
+    pub fn spawn_cube_in_front(&mut self, r: f32, g: f32, b: f32) -> u64 {
         let cam = &self.camera;
         let look_x = f32::cos(self.camera_phi) * f32::sin(self.camera_theta);
         let look_y = f32::sin(self.camera_phi);
@@ -270,7 +271,7 @@ impl Scene3D {
             let spawn_x = hit_cube_x + snap_normal.x;
             let spawn_y = hit_cube_y + snap_normal.y;
             let spawn_z = hit_cube_z + snap_normal.z;
-            return self.add_cube_physics(spawn_x, spawn_y, spawn_z);
+            return self.add_cube_physics(spawn_x, spawn_y, spawn_z, [r, g, b]);
         }
 
         if dir_y.abs() < 0.0001 { return 0; }
@@ -280,10 +281,10 @@ impl Scene3D {
         let spawn_x = hit.x.round();
         let spawn_y = 0.0;
         let spawn_z = hit.z.round();
-        self.add_cube_physics(spawn_x, spawn_y, spawn_z)
+        self.add_cube_physics(spawn_x, spawn_y, spawn_z, [r, g, b])
     }
 
-    pub fn add_cube_physics(&mut self, px: f32, py: f32, pz: f32) -> u64 {
+    pub fn add_cube_physics(&mut self, px: f32, py: f32, pz: f32, color: [f32; 3]) -> u64 {
         let id = self.next_id;
         self.next_id += 1;
 
@@ -305,6 +306,7 @@ impl Scene3D {
             },
             mesh_id:   Some(100u64),
             rb_handle: Some(rb_handle),
+            color,
         });
         id
     }
@@ -420,6 +422,7 @@ impl Scene3D {
             self.nodes.iter()
                 .map(|n| crate::core::renderer_gpu::build_model_matrix(&n.transform).to_cols_array_2d())
                 .collect();
+        let colors: Vec<[f32; 3]> = self.nodes.iter().map(|n| n.color).collect();
 
         let gizmo_lines: Vec<([f32; 3], [f32; 3])> = vec![];
         let gizmo_colors: [[f32; 3]; 3] = [[0.0; 3]; 3];
@@ -433,11 +436,11 @@ impl Scene3D {
 
         match &mut self.renderer {
             RendererVariant::Cpu(r) => {
-                r.render_frame(&view_proj, &eye, &model_matrices, &gizmo_lines, &gizmo_colors, rw, rh, player_x, player_z)
+                r.render_frame(&view_proj, &eye, &model_matrices, &colors, &gizmo_lines, &gizmo_colors, rw, rh, player_x, player_z)
             }
             RendererVariant::Iron { renderer, iron } => {
                 let pixels =
-                    renderer.render_frame(&view_proj, &eye, &model_matrices, &gizmo_lines, &gizmo_colors, rw, rh, player_x, player_z);
+                    renderer.render_frame(&view_proj, &eye, &model_matrices, &colors, &gizmo_lines, &gizmo_colors, rw, rh, player_x, player_z);
                 iron.provider().update_frame(&pixels);
                 iron.sendable().mark_frame_available();
                 vec![]
@@ -529,7 +532,7 @@ mod tests {
     #[test]
     fn add_cube_physics_creates_node_and_rigid_body() {
         let mut scene = Scene3D::new();
-        let id = scene.add_cube_physics(0.0, 5.0, 0.0);
+        let id = scene.add_cube_physics(0.0, 5.0, 0.0, [1.0, 0.4, 0.2]);
         let node = scene.get_node(id).unwrap();
         assert_eq!(node.transform.position, Vector3::new(0.0, 5.0, 0.0));
         assert!(node.rb_handle.is_some());
@@ -539,7 +542,7 @@ mod tests {
     #[test]
     fn fixed_cube_stays_in_place() {
         let mut scene = Scene3D::new();
-        let id = scene.add_cube_physics(0.0, 5.0, 0.0);
+        let id = scene.add_cube_physics(0.0, 5.0, 0.0, [1.0, 0.4, 0.2]);
         let pos_before = scene.get_node(id).unwrap().transform.position;
         for _ in 0..50 {
             scene.physics_step(0.016);
@@ -553,7 +556,7 @@ mod tests {
     #[test]
     fn update_node_transform() {
         let mut scene = Scene3D::new();
-        let id = scene.add_cube_physics(0.0, 0.0, 0.0);
+        let id = scene.add_cube_physics(0.0, 0.0, 0.0, [1.0, 0.4, 0.2]);
         scene.update_node_transform(id, 1.0, 2.0, 3.0, 0.1, 0.2, 0.3, 2.0, 2.0, 2.0);
         let node = scene.get_node(id).unwrap();
         assert_eq!(node.transform.position, Vector3::new(1.0, 2.0, 3.0));
@@ -578,6 +581,7 @@ mod tests {
                     (i % 10) as f32 * 1.5 - 5.0,
                     2.0 + (i / 10) as f32 * 1.2,
                     (i % 5) as f32 * 2.0 - 4.0,
+                    [1.0, 0.4, 0.2],
                 );
             }
             scene.render_gpu(W, H);

@@ -57,8 +57,17 @@ void movePlayer({
 void jumpPlayer({required Scene3D scene}) =>
     RustLib.instance.api.crateApiSimpleJumpPlayer(scene: scene);
 
-BigInt spawnCubeInFront({required Scene3D scene}) =>
-    RustLib.instance.api.crateApiSimpleSpawnCubeInFront(scene: scene);
+BigInt spawnCubeInFront({
+  required Scene3D scene,
+  required double r,
+  required double g,
+  required double b,
+}) => RustLib.instance.api.crateApiSimpleSpawnCubeInFront(
+  scene: scene,
+  r: r,
+  g: g,
+  b: b,
+);
 
 Future<Uint8List> renderScene({
   required Scene3D scene,

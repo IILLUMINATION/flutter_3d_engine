@@ -198,7 +198,7 @@ mod tests {
     #[test]
     fn render_scene_returns_correctly_sized_buffer() {
         let mut scene = Scene3D::new();
-        scene.add_cube_physics(0.0, 0.0, 0.0);
+        scene.add_cube_physics(0.0, 0.0, 0.0, [1.0, 0.4, 0.2]);
         let buf = render_scene(&scene, 64, 48);
         assert_eq!(buf.len(), 64 * 48 * 4);
     }
@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn render_scene_with_camera_moved() {
         let mut scene = Scene3D::new();
-        scene.add_cube_physics(0.0, 0.0, 0.0);
+        scene.add_cube_physics(0.0, 0.0, 0.0, [1.0, 0.4, 0.2]);
         scene.camera.position = Vector3::new(0.0, 0.0, 3.0);
         let buf = render_scene(&scene, 100, 100);
         assert_eq!(buf.len(), 100 * 100 * 4);
