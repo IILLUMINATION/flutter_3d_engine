@@ -90,7 +90,7 @@ impl Scene3D {
             .translation(vector![0.0, -1.0, 0.0])
             .build();
         let ground_handle = rigid_body_set.insert(ground_rb);
-        let ground_collider = ColliderBuilder::cuboid(10.0, 0.1, 10.0).build();
+        let ground_collider = ColliderBuilder::cuboid(1000.0, 0.1, 1000.0).build();
         collider_set.insert_with_parent(ground_collider, ground_handle, &mut rigid_body_set);
 
         let player_rb = RigidBodyBuilder::dynamic()
@@ -181,7 +181,7 @@ impl Scene3D {
             let sin_t = f32::sin(self.camera_theta);
             let cos_t = f32::cos(self.camera_theta);
             let forward = glam::Vec3::new(sin_t, 0.0, -cos_t);
-            let right = glam::Vec3::new(cos_t, 0.0, -sin_t);
+            let right = glam::Vec3::new(cos_t, 0.0, sin_t);
             let world_dx = forward.x * dz + right.x * dx;
             let world_dz = forward.z * dz + right.z * dx;
             let vel = rb.linvel();
@@ -262,9 +262,12 @@ impl Scene3D {
             } else {
                 glam::Vec3::new(0.0, 0.0, normal.z.signum())
             };
-            let spawn_x = (hit_point.x + snap_normal.x * 0.5).round();
-            let spawn_y = (hit_point.y + snap_normal.y * 0.5).round();
-            let spawn_z = (hit_point.z + snap_normal.z * 0.5).round();
+            let hit_cube_x = (hit_point.x - snap_normal.x * 0.001).round();
+            let hit_cube_y = (hit_point.y - snap_normal.y * 0.001).round();
+            let hit_cube_z = (hit_point.z - snap_normal.z * 0.001).round();
+            let spawn_x = hit_cube_x + snap_normal.x;
+            let spawn_y = hit_cube_y + snap_normal.y;
+            let spawn_z = hit_cube_z + snap_normal.z;
             return self.add_cube_physics(spawn_x, spawn_y, spawn_z);
         }
 
@@ -282,14 +285,12 @@ impl Scene3D {
         let id = self.next_id;
         self.next_id += 1;
 
-        let rb = RigidBodyBuilder::dynamic()
+        let rb = RigidBodyBuilder::fixed()
             .translation(vector![px, py, pz])
-            .linear_damping(0.5)
-            .angular_damping(2.0)
             .build();
         let rb_handle = self.rigid_body_set.insert(rb);
         let collider = ColliderBuilder::cuboid(0.5, 0.5, 0.5)
-            .restitution(0.1)
+            .restitution(0.0)
             .build();
         self.collider_set.insert_with_parent(collider, rb_handle, &mut self.rigid_body_set);
 
@@ -512,24 +513,17 @@ mod tests {
     }
 
     #[test]
-    fn physics_step_moves_cube_down() {
+    fn fixed_cube_stays_in_place() {
         let mut scene = Scene3D::new();
         let id = scene.add_cube_physics(0.0, 5.0, 0.0);
-        let y_before = scene.get_node(id).unwrap().transform.position.y;
-        scene.physics_step(0.016);
-        let y_after = scene.get_node(id).unwrap().transform.position.y;
-        assert!(y_after < y_before);
-    }
-
-    #[test]
-    fn physics_step_cube_doesnt_fall_through_ground() {
-        let mut scene = Scene3D::new();
-        let id = scene.add_cube_physics(0.0, 5.0, 0.0);
-        for _ in 0..300 {
+        let pos_before = scene.get_node(id).unwrap().transform.position;
+        for _ in 0..50 {
             scene.physics_step(0.016);
         }
-        let y = scene.get_node(id).unwrap().transform.position.y;
-        assert!(y >= -0.6);
+        let pos_after = scene.get_node(id).unwrap().transform.position;
+        assert!((pos_after.x - pos_before.x).abs() < 0.01);
+        assert!((pos_after.y - pos_before.y).abs() < 0.01);
+        assert!((pos_after.z - pos_before.z).abs() < 0.01);
     }
 
     #[test]

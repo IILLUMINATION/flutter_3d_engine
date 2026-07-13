@@ -1,11 +1,10 @@
-import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:irondash_engine_context/irondash_engine_context.dart';
+import 'package:pointer_lock/pointer_lock.dart';
 import 'package:flutter_rust_3d/flutter_rust_3d.dart';
 import 'package:flutter_rust_3d/src/rust/frb_generated.dart';
 import 'package:flutter_rust_3d/src/rust/api/simple.dart';
@@ -47,11 +46,8 @@ class _DemoScreenState extends State<DemoScreen> {
   Rust3DController? _controller;
   final List<BigInt> _cubeIds = [];
 
-  static const double renderWidth = 800;
-  static const double renderHeight = 450;
-
   final Set<PhysicalKeyboardKey> _pressedKeys = {};
-  bool _isRotatingCamera = false;
+  PointerLockSession? _pointerLockSession;
 
   @override
   void initState() {
@@ -62,6 +58,7 @@ class _DemoScreenState extends State<DemoScreen> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onKeyEvent);
+    _pointerLockSession?.dispose();
     super.dispose();
   }
 
@@ -100,97 +97,116 @@ class _DemoScreenState extends State<DemoScreen> {
   }
 
   void _onTap() {
-    if (_controller == null) return;
-    final id = _controller!.spawnCubeInFront();
-    setState(() => _cubeIds.add(id));
+    if (_pointerLockSession == null) {
+      _lockMouse();
+      return;
+    }
+    if (_controller != null) {
+      final id = _controller!.spawnCubeInFront();
+      setState(() => _cubeIds.add(id));
+    }
   }
 
-  void _onPointerDown(PointerDownEvent event) {
-    _isRotatingCamera = true;
-    setState(() {});
-  }
+  void _lockMouse() {
+    final pointerLock = PointerLock.instance;
+    _pointerLockSession = pointerLock.createSession();
 
-  void _onPointerMove(PointerMoveEvent event) {
-    if (_controller == null || !_isRotatingCamera) return;
-    _controller!.orbitCamera(event.delta.dx, event.delta.dy);
-  }
+    _pointerLockSession!.events.listen((event) {
+      if (event is PointerLockMoveEvent && _controller != null) {
+        _controller!.orbitCamera(event.delta.dx, event.delta.dy);
+      }
+    }, onDone: () {
+      setState(() {
+        _pointerLockSession?.dispose();
+        _pointerLockSession = null;
+      });
+    });
 
-  void _onPointerUp(PointerUpEvent event) {
-    _isRotatingCamera = false;
     setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    final cursor = _isRotatingCamera ? SystemMouseCursors.none : SystemMouseCursors.basic;
+    final locked = _pointerLockSession != null;
 
     return Scaffold(
-      body: MouseRegion(
-        cursor: cursor,
-        child: GestureDetector(
-          onTap: _onTap,
-          child: Listener(
-            onPointerDown: _onPointerDown,
-            onPointerMove: _onPointerMove,
-            onPointerUp: _onPointerUp,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: FullScreenCanvas(
-                    onCreated: _onCreated,
-                    onTick: _onTick,
-                  ),
+      body: GestureDetector(
+        onTap: _onTap,
+        behavior: HitTestBehavior.translucent,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: FullScreenCanvas(
+                onCreated: _onCreated,
+                onTick: _onTick,
+              ),
+            ),
+            if (locked)
+              const Center(
+                child: IgnorePointer(
+                  child: Crosshair(),
                 ),
-                const Center(
+              ),
+            if (!locked)
+              const Positioned.fill(
+                child: Center(
                   child: IgnorePointer(
-                    child: Crosshair(),
-                  ),
-                ),
-                Positioned(
-                  top: 24,
-                  right: 24,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        width: 190,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF28282E).withOpacity(0.75),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const Text('FPS Sandbox',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Color(0xFFE27F2D),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            const Divider(color: Colors.white10, height: 1, thickness: 1),
-                            const SizedBox(height: 12),
-                            _infoRow('Cubes Count', '${_cubeIds.length}', bold: true),
-                            const SizedBox(height: 12),
-                            const Divider(color: Colors.white10, height: 1, thickness: 1),
-                            const SizedBox(height: 12),
-                            _controlsRow(),
-                          ],
-                        ),
+                    child: Text(
+                      'Click to capture mouse (ESC to release)\nClick again to spawn cubes',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 13,
+                        height: 1.6,
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
+              ),
+            if (!locked)
+              Positioned(
+                top: 24,
+                right: 24,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      width: 190,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF28282E).withOpacity(0.75),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white.withOpacity(0.08), width: 1),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text('FPS Sandbox',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFFE27F2D),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          const Divider(color: Colors.white10, height: 1, thickness: 1),
+                          const SizedBox(height: 12),
+                          _infoRow('Cubes Count', '${_cubeIds.length}', bold: true),
+                          const SizedBox(height: 12),
+                          const Divider(color: Colors.white10, height: 1, thickness: 1),
+                          const SizedBox(height: 12),
+                          _controlsRow(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -211,9 +227,9 @@ class _DemoScreenState extends State<DemoScreen> {
         SizedBox(height: 2),
         Text('Space — Jump', style: TextStyle(color: Colors.white54, fontSize: 10)),
         SizedBox(height: 2),
-        Text('Hold mouse — Look', style: TextStyle(color: Colors.white54, fontSize: 10)),
+        Text('First click — Capture mouse', style: TextStyle(color: Colors.white54, fontSize: 10)),
         SizedBox(height: 2),
-        Text('Click — Spawn cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
+        Text('Next click — Spawn cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
       ],
     );
   }
@@ -231,14 +247,13 @@ class FullScreenCanvas extends StatefulWidget {
 
 class _FullScreenCanvasState extends State<FullScreenCanvas>
     with SingleTickerProviderStateMixin {
-  static const int renderWidth = 800;
-  static const int renderHeight = 450;
-
   Scene3D? _scene;
   int? _textureId;
   late final Ticker _ticker;
   Rust3DController? _controller;
   DateTime? _lastTickTime;
+  int _lastWidth = 0;
+  int _lastHeight = 0;
 
   @override
   void initState() {
@@ -247,16 +262,29 @@ class _FullScreenCanvasState extends State<FullScreenCanvas>
     WidgetsBinding.instance.addPostFrameCallback((_) => _init());
   }
 
+  Size _renderSize() {
+    final size = MediaQueryData.fromView(View.of(context)).size;
+    final dpr = MediaQueryData.fromView(View.of(context)).devicePixelRatio;
+    return Size(size.width * dpr, size.height * dpr);
+  }
+
   Future<void> _init() async {
     final scene = await createScene();
+
+    final renderSize = _renderSize();
+    final width = renderSize.width.toInt();
+    final height = renderSize.height.toInt();
 
     final handle = await EngineContext.instance.getEngineHandle();
     final textureId = await initNativeTexture(
       scene: scene,
       engineHandle: handle,
-      width: renderWidth,
-      height: renderHeight,
+      width: width,
+      height: height,
     );
+
+    _lastWidth = width;
+    _lastHeight = height;
 
     final controller = Rust3DController.wrap(scene, textureId: textureId);
     setState(() {
@@ -284,7 +312,14 @@ class _FullScreenCanvasState extends State<FullScreenCanvas>
       widget.onTick?.call(ctrl, elapsedSec, deltaSec);
     }
 
-    renderNativeFrame(scene: scene, width: renderWidth, height: renderHeight);
+    final renderSize = _renderSize();
+    final width = renderSize.width.toInt();
+    final height = renderSize.height.toInt();
+    if (width != _lastWidth || height != _lastHeight) {
+      _lastWidth = width;
+      _lastHeight = height;
+    }
+    renderNativeFrame(scene: scene, width: _lastWidth, height: _lastHeight);
   }
 
   @override
