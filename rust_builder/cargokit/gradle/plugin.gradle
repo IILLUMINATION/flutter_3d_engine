@@ -129,13 +129,10 @@ class CargoKitPlugin implements Plugin<Project> {
             final buildType = variant.buildType.name
 
             def cargoOutputDir = "${project.buildDir}/jniLibs/${buildType}";
-            def jniLibs
-            try {
-                jniLibs = project.android.sourceSets.maybeCreate(buildType).jniLibs
-            } catch (Exception ignored) {
-                jniLibs = project.android.sourceSets.getByName("main").jniLibs
+            def jniLibs = project.android.sourceSets.findByName(buildType)?.jniLibs
+            if (jniLibs != null) {
+                jniLibs.srcDir(new File(cargoOutputDir))
             }
-            jniLibs.srcDir(new File(cargoOutputDir))
 
             def List<String> platforms
             try {
