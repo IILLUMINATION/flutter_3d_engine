@@ -72,7 +72,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
         stem: 'rust_lib_flutter_rust_3d',
-        ioDirectory: 'rust/target/release/',
+        ioDirectory: null,
         webPrefix: 'pkg/',
         wasmBindgenName: 'wasm_bindgen',
       );

@@ -12,6 +12,8 @@ dependencies:
     sdk: flutter
   flutter_rust_3d:
     path: ../
+  rust_lib_flutter_rust_3d:
+    path: ../rust_builder
 
 dev_dependencies:
   flutter_test:
