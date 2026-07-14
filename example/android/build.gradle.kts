@@ -1,9 +1,3 @@
-gradle.projectsEvaluated {
-    allprojects {
-        (extensions.findByName("android") as? com.android.build.api.dsl.CommonExtension<*, *, *, *, *>)?.compileSdk = 35
-    }
-}
-
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
         .dir("../../build")
