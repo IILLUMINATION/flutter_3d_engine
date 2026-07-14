@@ -39,4 +39,7 @@ class Rust3DController {
       ffi.spawnCubeInFront(scene: _scene, r: r, g: g, b: b);
 
   bool destroyLookedBlock() => ffi.destroyLookedBlock(scene: _scene);
+
+  void spawnFluidAt({double x = 0, double y = 0, double z = 0}) =>
+      ffi.spawnFluidAt(scene: _scene, x: x, y: y, z: z);
 }

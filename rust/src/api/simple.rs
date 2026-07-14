@@ -57,6 +57,11 @@ pub fn destroy_looked_block(scene: &mut Scene3D) -> bool {
     scene.destroy_looked_block()
 }
 
+#[flutter_rust_bridge::frb(sync)]
+pub fn spawn_fluid_at(scene: &mut Scene3D, x: f32, y: f32, z: f32) {
+    scene.spawn_fluid_at(x, y, z);
+}
+
 pub fn render_scene(scene: &mut Scene3D, width: u32, height: u32) -> Vec<u8> {
     scene.render_gpu(width, height)
 }

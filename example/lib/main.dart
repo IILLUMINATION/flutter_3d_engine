@@ -9,6 +9,7 @@ import 'package:irondash_engine_context/irondash_engine_context.dart';
 import 'package:flutter_rust_3d/flutter_rust_3d.dart';
 import 'package:flutter_rust_3d/src/rust/frb_generated.dart';
 import 'package:flutter_rust_3d/src/rust/api/simple.dart';
+import 'package:flutter_rust_3d/src/rust/api/simple.dart' as ffi;
 import 'package:flutter_rust_3d/src/rust/core/scene.dart';
 
 Future<void> main() async {
@@ -121,6 +122,9 @@ class _DemoScreenState extends State<DemoScreen> {
           case PhysicalKeyboardKey.digit0:
             setState(() => _selectedColorIndex = 9);
             return true;
+          case PhysicalKeyboardKey.keyB:
+            _spawnFluid();
+            return true;
           default:
             _pressedKeys.add(event.physicalKey);
         }
@@ -182,6 +186,16 @@ class _DemoScreenState extends State<DemoScreen> {
         if (_cubeIds.isNotEmpty) _cubeIds.removeLast();
       });
     }
+  }
+
+  void _spawnFluid() async {
+    if (_controller == null) return;
+    final pos = await getCameraPosition(scene: _controller!.scene);
+    _controller!.spawnFluidAt(
+      x: pos.$1,
+      y: pos.$2 - 1.0,
+      z: pos.$3,
+    );
   }
 
   void _onPointerDownDesktop(PointerDownEvent event) {
@@ -310,6 +324,8 @@ class _DemoScreenState extends State<DemoScreen> {
             Text('M-click  —  Destroy cube', style: TextStyle(color: Colors.white54, fontSize: 10)),
             SizedBox(height: 2),
             Text('1-9, 0  —  Select color', style: TextStyle(color: Colors.white54, fontSize: 10)),
+            SizedBox(height: 2),
+            Text('B  —  Spawn water', style: TextStyle(color: Colors.white54, fontSize: 10)),
           ],
         ),
       ),
@@ -402,6 +418,8 @@ class _DemoScreenState extends State<DemoScreen> {
           _actionBtn(Icons.add, _spawnCube),
           const SizedBox(width: 4),
           _actionBtn(Icons.delete_outline, _destroyLookedBlock),
+          const SizedBox(width: 4),
+          _actionBtn(Icons.water_drop, _spawnFluid),
         ],
       ),
     );
