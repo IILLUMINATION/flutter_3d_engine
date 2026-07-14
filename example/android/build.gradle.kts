@@ -3,6 +3,19 @@ allprojects {
         google()
         mavenCentral()
     }
+    afterEvaluate {
+        if (hasProperty("android")) {
+            val androidExt = extensions.findByName("android")
+            if (androidExt is com.android.build.api.dsl.LibraryExtension || androidExt is com.android.build.api.dsl.CommonExtension<*, *, *, *>) {
+                try {
+                    if (androidExt.compileSdk == null || (androidExt.compileSdk as? Int ?: 0) < 34) {
+                        println("Forcing compileSdk to 35 for ${project.name}")
+                        androidExt.compileSdk = 35
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+    }
 }
 
 val newBuildDir: Directory =
