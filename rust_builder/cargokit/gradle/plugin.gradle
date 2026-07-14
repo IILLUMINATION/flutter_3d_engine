@@ -60,27 +60,32 @@ abstract class CargoKitBuildTask extends DefaultTask {
         def rootProjectDir = project.rootProject.projectDir
 
         if (!Os.isFamily(Os.FAMILY_WINDOWS)) {
-            project.providers.exec {
-                commandLine 'chmod', '+x', path
-            }.result.get()
+            new ProcessBuilder('chmod', '+x', path.toString()).inheritIO().start().waitFor()
         }
 
-        project.providers.exec {
-            executable path
-            args "build-gradle"
-            environment "CARGOKIT_ROOT_PROJECT_DIR", rootProjectDir
-            environment "CARGOKIT_TOOL_TEMP_DIR", "${buildDir}/build_tool"
-            environment "CARGOKIT_MANIFEST_DIR", manifestDir
-            environment "CARGOKIT_CONFIGURATION", buildMode
-            environment "CARGOKIT_TARGET_TEMP_DIR", buildDir
-            environment "CARGOKIT_OUTPUT_DIR", outputDir
-            environment "CARGOKIT_NDK_VERSION", ndkVersion
-            environment "CARGOKIT_SDK_DIR", sdkDirectory
-            environment "CARGOKIT_COMPILE_SDK_VERSION", compileSdkVersion
-            environment "CARGOKIT_MIN_SDK_VERSION", minSdkVersion
-            environment "CARGOKIT_TARGET_PLATFORMS", targetPlatforms.join(",")
-            environment "CARGOKIT_JAVA_HOME", System.properties['java.home']
-        }.result.get()
+        def cmd = [path.toString(), "build-gradle"]
+        def env = [
+            "CARGOKIT_ROOT_PROJECT_DIR": rootProjectDir,
+            "CARGOKIT_TOOL_TEMP_DIR": "${buildDir}/build_tool",
+            "CARGOKIT_MANIFEST_DIR": manifestDir,
+            "CARGOKIT_CONFIGURATION": buildMode,
+            "CARGOKIT_TARGET_TEMP_DIR": buildDir,
+            "CARGOKIT_OUTPUT_DIR": outputDir,
+            "CARGOKIT_NDK_VERSION": ndkVersion,
+            "CARGOKIT_SDK_DIR": sdkDirectory,
+            "CARGOKIT_COMPILE_SDK_VERSION": compileSdkVersion,
+            "CARGOKIT_MIN_SDK_VERSION": minSdkVersion,
+            "CARGOKIT_TARGET_PLATFORMS": targetPlatforms.join(","),
+            "CARGOKIT_JAVA_HOME": System.properties['java.home'],
+        ]
+        def pb = new ProcessBuilder(cmd)
+        pb.environment().putAll(env)
+        pb.inheritIO()
+        def proc = pb.start()
+        def exitCode = proc.waitFor()
+        if (exitCode != 0) {
+            throw new GradleException("build-gradle failed with exit code ${exitCode}")
+        }
     }
 }
 
