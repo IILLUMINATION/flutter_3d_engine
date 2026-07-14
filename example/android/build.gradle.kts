@@ -1,10 +1,6 @@
 gradle.projectsEvaluated {
     allprojects {
-        extensions.findByName("android")?.let { android ->
-            if (android is com.android.build.api.dsl.CommonExtension<*, *, *, *, *>) {
-                android.compileSdk = 35
-            }
-        }
+        (extensions.findByName("android") as? com.android.build.api.dsl.CommonExtension<*, *, *, *, *>)?.compileSdk = 35
     }
 }
 
