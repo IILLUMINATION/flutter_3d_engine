@@ -3,14 +3,12 @@ use wgpu::util::DeviceExt;
 use crate::core::math::Transform;
 use crate::core::present::FrameSink;
 use crate::core::scene::Scene3D;
-use crate::core::water_mesh::WaterMesh;
 
 const SHADER_SOURCE: &str = include_str!("../shader.wgsl");
-const WATER_SHADER_SOURCE: &str = include_str!("../water.wgsl");
-const WATER_NORMAL_DATA: &[u8] = include_bytes!("../water_normal.png");
 const MAX_INSTANCES: u32 = 500;
 const MAX_GRID_VERTS: u32 = 2500;
 const MAX_GIZMO_VERTS: u32 = 256;
+const MAX_FLUID_PARTICLES: u32 = 4096;
 const INSTANCE_DATA_SIZE: u64 = 80;
 const GRID_VERTEX_SIZE: u64 = 24;
 
@@ -135,20 +133,12 @@ pub struct GpuRenderer<S: FrameSink = crate::core::present::CpuBufferSink> {
     render_texture_view: wgpu::TextureView,
     depth_texture: wgpu::Texture,
     depth_view: wgpu::TextureView,
-    opaque_texture: wgpu::Texture,
-    opaque_texture_view: wgpu::TextureView,
-    water_pipeline: wgpu::RenderPipeline,
-    water_bind_group_layout: wgpu::BindGroupLayout,
-    water_normal_texture: wgpu::Texture,
-    water_normal_view: wgpu::TextureView,
-    water_sampler: wgpu::Sampler,
-    water_bind_group: wgpu::BindGroup,
-    water_uniform_buffer: wgpu::Buffer,
-    water_vertex_buffer: wgpu::Buffer,
-    water_index_buffer: wgpu::Buffer,
-    water_vertex_count: u32,
-    water_index_count: u32,
-    screen_sampler: wgpu::Sampler,
+    fluid_pipeline: wgpu::RenderPipeline,
+    fluid_vertex_buffer: wgpu::Buffer,
+    fluid_instance_buffer: wgpu::Buffer,
+    fluid_bind_group: wgpu::BindGroup,
+    fluid_uniform_buffer: wgpu::Buffer,
+    fluid_instance_count: u32,
     sink: S,
 }
 
@@ -405,144 +395,88 @@ impl<S: FrameSink> GpuRenderer<S> {
         });
         let depth_view = depth_texture.create_view(&Default::default());
 
-        let opaque_texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("opaque texture"),
-            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
-        let opaque_texture_view = opaque_texture.create_view(&Default::default());
-
-        let screen_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("screen sampler"),
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
-            ..Default::default()
+        let quad_verts: [[f32; 3]; 6] = [
+            [-1.0, -1.0, 0.0],
+            [ 1.0, -1.0, 0.0],
+            [ 1.0,  1.0, 0.0],
+            [-1.0, -1.0, 0.0],
+            [ 1.0,  1.0, 0.0],
+            [-1.0,  1.0, 0.0],
+        ];
+        let fluid_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("fluid quad"),
+            contents: bytemuck::cast_slice(&quad_verts),
+            usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let water_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("water shader"),
-            source: wgpu::ShaderSource::Wgsl(WATER_SHADER_SOURCE.into()),
+        let fluid_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("fluid instances"),
+            size: (MAX_FLUID_PARTICLES as u64) * 16,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         });
 
-        let water_normal_image = image::load_from_memory_with_format(
-            WATER_NORMAL_DATA,
-            image::ImageFormat::Png,
-        )
-        .unwrap()
-        .to_rgba8();
-        let (nw, nh) = water_normal_image.dimensions();
-        let water_normal_texture = device.create_texture_with_data(
-            &queue,
-            &wgpu::TextureDescriptor {
-                label: Some("water normal"),
-                size: wgpu::Extent3d { width: nw, height: nh, depth_or_array_layers: 1 },
-                mip_level_count: 1,
-                sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
-                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                view_formats: &[],
-            },
-            wgpu::util::TextureDataOrder::LayerMajor,
-            &water_normal_image,
-        );
-        let water_normal_view = water_normal_texture.create_view(&Default::default());
-
-        let water_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("water sampler"),
-            address_mode_u: wgpu::AddressMode::Repeat,
-            address_mode_v: wgpu::AddressMode::Repeat,
-            address_mode_w: wgpu::AddressMode::Repeat,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::MipmapFilterMode::Linear,
-            ..Default::default()
+        let fluid_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("fluid uniforms"),
+            size: 128,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
         });
 
-        let water_bg_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("water bgl"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: std::num::NonZeroU64::new(128),
-                        },
-                        count: None,
+        let fluid_bg_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("fluid bgl"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: std::num::NonZeroU64::new(80),
                     },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            multisampled: false,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 3,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 4,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            multisampled: false,
-                        },
-                        count: None,
-                    },
-                ],
-            });
+                    count: None,
+                },
+            ],
+        });
 
-        let water_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("water pipeline layout"),
-            bind_group_layouts: &[Some(&water_bg_layout)],
+        let fluid_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("fluid bg"),
+            layout: &fluid_bg_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: fluid_uniform_buffer.as_entire_binding(),
+            }],
+        });
+
+        let fluid_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("fluid pipeline layout"),
+            bind_group_layouts: &[Some(&fluid_bg_layout)],
             immediate_size: 0,
         });
 
-        let water_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("water pipeline"),
-            layout: Some(&water_pipeline_layout),
+        let fluid_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("fluid pipeline"),
+            layout: Some(&fluid_pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &water_shader,
-                entry_point: Some("water_vs"),
+                module: &shader,
+                entry_point: Some("fluid_vs"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[Some(wgpu::VertexBufferLayout {
-                    array_stride: 24,
-                    step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &wgpu::vertex_attr_array![
-                        0 => Float32x3,
-                        1 => Float32x2,
-                        2 => Float32
-                    ],
-                })],
+                buffers: &[
+                    Some(wgpu::VertexBufferLayout {
+                        array_stride: 12,
+                        step_mode: wgpu::VertexStepMode::Vertex,
+                        attributes: &wgpu::vertex_attr_array![0 => Float32x3],
+                    }),
+                    Some(wgpu::VertexBufferLayout {
+                        array_stride: 16,
+                        step_mode: wgpu::VertexStepMode::Instance,
+                        attributes: &wgpu::vertex_attr_array![1 => Float32x3, 2 => Float32],
+                    }),
+                ],
             },
             fragment: Some(wgpu::FragmentState {
-                module: &water_shader,
-                entry_point: Some("water_fs"),
+                module: &shader,
+                entry_point: Some("fluid_fs"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     format: wgpu::TextureFormat::Rgba8UnormSrgb,
@@ -571,53 +505,6 @@ impl<S: FrameSink> GpuRenderer<S> {
             cache: None,
         });
 
-        let water_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("water uniforms"),
-            size: 128,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        let water_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("water vertex"),
-            size: 1,
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-        let water_index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("water index"),
-            size: 1,
-            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        let water_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("water bind group"),
-            layout: &water_bg_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: water_uniform_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&water_sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::TextureView(&water_normal_view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::Sampler(&screen_sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 4,
-                    resource: wgpu::BindingResource::TextureView(&opaque_texture_view),
-                },
-            ],
-        });
-
         Self {
             device,
             queue,
@@ -638,20 +525,12 @@ impl<S: FrameSink> GpuRenderer<S> {
             render_texture_view,
             depth_texture,
             depth_view,
-            opaque_texture,
-            opaque_texture_view,
-            water_pipeline,
-            water_bind_group_layout: water_bg_layout,
-            water_normal_texture,
-            water_normal_view,
-            water_sampler,
-            water_bind_group,
-            water_uniform_buffer,
-            water_vertex_buffer,
-            water_index_buffer,
-            water_vertex_count: 0,
-            water_index_count: 0,
-            screen_sampler,
+            fluid_pipeline,
+            fluid_vertex_buffer,
+            fluid_instance_buffer,
+            fluid_bind_group,
+            fluid_uniform_buffer,
+            fluid_instance_count: 0,
             sink,
         }
     }
@@ -680,45 +559,6 @@ impl<S: FrameSink> GpuRenderer<S> {
             view_formats: &[],
         });
         self.depth_view = self.depth_texture.create_view(&Default::default());
-
-        self.opaque_texture = self.device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("opaque texture"),
-            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
-        });
-        self.opaque_texture_view = self.opaque_texture.create_view(&Default::default());
-
-        self.water_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("water bind group"),
-            layout: &self.water_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: self.water_uniform_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&self.water_sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::TextureView(&self.water_normal_view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::Sampler(&self.screen_sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 4,
-                    resource: wgpu::BindingResource::TextureView(&self.opaque_texture_view),
-                },
-            ],
-        });
     }
 
     pub fn render_frame(
@@ -733,8 +573,7 @@ impl<S: FrameSink> GpuRenderer<S> {
         height: u32,
         player_x: f32,
         player_z: f32,
-        water: Option<&WaterMesh>,
-        time: f32,
+        fluid_particles: &[(glam::Vec3, [f32; 3])],
     ) -> Vec<u8> {
         if self.render_texture.width() != width || self.render_texture.height() != height {
             self.resize(width, height);
@@ -745,11 +584,7 @@ impl<S: FrameSink> GpuRenderer<S> {
             camera_pos: [eye.x, eye.y, eye.z, 1.0],
         };
 
-        self.queue.write_buffer(
-            &self.camera_buffer,
-            0,
-            bytemuck::bytes_of(&cam_uniform),
-        );
+        self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::bytes_of(&cam_uniform));
 
         let num_instances = model_matrices.len().min(MAX_INSTANCES as usize) as u32;
 
@@ -758,11 +593,7 @@ impl<S: FrameSink> GpuRenderer<S> {
                 .zip(colors.iter())
                 .map(|(m, c)| InstanceData { model: *m, color: *c, _pad: 0.0 })
                 .collect();
-            self.queue.write_buffer(
-                &self.models_storage_buffer,
-                0,
-                bytemuck::cast_slice(&instances),
-            );
+            self.queue.write_buffer(&self.models_storage_buffer, 0, bytemuck::cast_slice(&instances));
         }
 
         let gizmo_vert_count = (gizmo_lines.len() * 2) as u32;
@@ -773,10 +604,7 @@ impl<S: FrameSink> GpuRenderer<S> {
                 .enumerate()
                 .flat_map(|(i, (a, b))| {
                     let col = gizmo_colors[i % 3];
-                    vec![
-                        GridVertex { position: *a, color: col },
-                        GridVertex { position: *b, color: col },
-                    ]
+                    vec![GridVertex { position: *a, color: col }, GridVertex { position: *b, color: col }]
                 })
                 .collect();
             if verts.len() <= self.gizmo_buffer_capacity as usize {
@@ -788,131 +616,66 @@ impl<S: FrameSink> GpuRenderer<S> {
         let grid_vcount = grid_verts.len().min(self.grid_buffer_capacity as usize) as u32;
         self.queue.write_buffer(&self.grid_buffer, 0, bytemuck::cast_slice(&grid_verts[..grid_vcount as usize]));
 
-        if let Some(w) = water {
-            if !w.is_empty() {
-                let vdata: &[u8] = bytemuck::cast_slice(&w.vertices);
-                let idata: &[u8] = bytemuck::cast_slice(&w.indices);
-
-                if self.water_vertex_buffer.size() < vdata.len() as u64 {
-                    self.water_vertex_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-                        label: Some("water vertex"),
-                        size: ((vdata.len() + 255) as u64 / 256) * 256,
-                        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-                        mapped_at_creation: false,
-                    });
-                }
-                if self.water_index_buffer.size() < idata.len() as u64 {
-                    self.water_index_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-                        label: Some("water index"),
-                        size: ((idata.len() + 255) as u64 / 256) * 256,
-                        usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
-                        mapped_at_creation: false,
-                    });
-                }
-
-                self.queue.write_buffer(&self.water_vertex_buffer, 0, vdata);
-                self.queue.write_buffer(&self.water_index_buffer, 0, idata);
-                self.water_vertex_count = w.vertices.len() as u32;
-                self.water_index_count = w.indices.len() as u32;
-            } else {
-                self.water_vertex_count = 0;
-                self.water_index_count = 0;
-            }
+        let fc = fluid_particles.len().min(MAX_FLUID_PARTICLES as usize) as u32;
+        if fc > 0 {
+            let fdata: Vec<[f32; 4]> = fluid_particles.iter().take(fc as usize).map(|(pos, _)| [pos.x, pos.y, pos.z, 0.12]).collect();
+            self.queue.write_buffer(&self.fluid_instance_buffer, 0, bytemuck::cast_slice(&fdata));
+            self.fluid_instance_count = fc;
         } else {
-            self.water_vertex_count = 0;
-            self.water_index_count = 0;
+            self.fluid_instance_count = 0;
         }
 
-        let color_attach = wgpu::RenderPassColorAttachment {
-            view: &self.opaque_texture_view,
-            depth_slice: None,
-            resolve_target: None,
-            ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.12, g: 0.12, b: 0.16, a: 1.0 }), store: wgpu::StoreOp::Store },
-        };
+        self.queue.write_buffer(&self.fluid_uniform_buffer, 0, bytemuck::bytes_of(&cam_uniform));
 
+        let mut encoder = self.device.create_command_encoder(&Default::default());
         {
-            let mut encoder = self.device.create_command_encoder(&Default::default());
-            {
-                let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("opaque pass"),
-                    color_attachments: &[Some(color_attach)],
-                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: &self.depth_view,
-                        depth_ops: Some(wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(1.0),
-                            store: wgpu::StoreOp::Store,
-                        }),
-                        stencil_ops: None,
-                    }),
-                    timestamp_writes: None,
-                    occlusion_query_set: None,
-                    multiview_mask: None,
-                });
+            let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("main pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &self.render_texture_view,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.12, g: 0.12, b: 0.16, a: 1.0 }), store: wgpu::StoreOp::Store },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_view,
+                    depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Store }),
+                    stencil_ops: None,
+                }),
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
 
-                rpass.set_pipeline(&self.grid_pipeline);
+            rpass.set_pipeline(&self.grid_pipeline);
+            rpass.set_bind_group(0, &self.camera_bind_group, &[]);
+            rpass.set_vertex_buffer(0, self.grid_buffer.slice(..));
+            rpass.draw(0..grid_vcount, 0..1);
+
+            if gizmo_vert_count > 0 {
+                rpass.set_vertex_buffer(0, self.gizmo_buffer.slice(..));
+                rpass.draw(0..gizmo_vert_count, 0..1);
+            }
+
+            if num_instances > 0 {
+                rpass.set_pipeline(&self.render_pipeline);
                 rpass.set_bind_group(0, &self.camera_bind_group, &[]);
-                rpass.set_vertex_buffer(0, self.grid_buffer.slice(..));
-                rpass.draw(0..grid_vcount, 0..1);
-
-                if gizmo_vert_count > 0 {
-                    rpass.set_vertex_buffer(0, self.gizmo_buffer.slice(..));
-                    rpass.draw(0..gizmo_vert_count, 0..1);
-                }
-
-                if num_instances > 0 {
-                    rpass.set_pipeline(&self.render_pipeline);
-                    rpass.set_bind_group(0, &self.camera_bind_group, &[]);
-                    rpass.set_bind_group(1, &self.models_bind_group, &[]);
-                    rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                    rpass.draw(0..self.num_vertices, 0..num_instances);
-                }
+                rpass.set_bind_group(1, &self.models_bind_group, &[]);
+                rpass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                rpass.draw(0..self.num_vertices, 0..num_instances);
             }
-            self.queue.submit(Some(encoder.finish()));
-        }
 
-        {
-            let water_uniforms = WaterUniforms {
-                view_proj: view_proj.to_cols_array_2d(),
-                camera_pos: [eye.x, eye.y, eye.z, 1.0],
-                time,
-                screen_size: [width as f32, height as f32],
-                _pad: 0.0,
-            };
-            self.queue.write_buffer(&self.water_uniform_buffer, 0, bytemuck::bytes_of(&water_uniforms));
-
-            let mut encoder = self.device.create_command_encoder(&Default::default());
-            {
-                let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("composite pass"),
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &self.render_texture_view,
-                        depth_slice: None,
-                        resolve_target: None,
-                        ops: wgpu::Operations { load: wgpu::LoadOp::Clear(wgpu::Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 }), store: wgpu::StoreOp::Store },
-                    })],
-                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: &self.depth_view,
-                        depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store }),
-                        stencil_ops: None,
-                    }),
-                    timestamp_writes: None,
-                    occlusion_query_set: None,
-                    multiview_mask: None,
-                });
-
-                if self.water_index_count > 0 {
-                    rpass.set_pipeline(&self.water_pipeline);
-                    rpass.set_bind_group(0, &self.water_bind_group, &[]);
-                    rpass.set_vertex_buffer(0, self.water_vertex_buffer.slice(..));
-                    rpass.set_index_buffer(self.water_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                    rpass.draw_indexed(0..self.water_index_count, 0, 0..1);
-                }
+            if self.fluid_instance_count > 0 {
+                rpass.set_pipeline(&self.fluid_pipeline);
+                rpass.set_bind_group(0, &self.fluid_bind_group, &[]);
+                rpass.set_vertex_buffer(0, self.fluid_vertex_buffer.slice(..));
+                rpass.set_vertex_buffer(1, self.fluid_instance_buffer.slice(..));
+                rpass.draw(0..6, 0..self.fluid_instance_count);
             }
-            self.queue.submit(Some(encoder.finish()));
         }
+        self.queue.submit(Some(encoder.finish()));
 
-        self.sink
-            .present_from_dual(&self.device, &self.queue, &self.opaque_texture, &self.render_texture)
+        self.sink.present(&self.device, &self.queue, &self.render_texture)
     }
 }
 

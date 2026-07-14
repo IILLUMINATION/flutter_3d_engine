@@ -78,3 +78,31 @@ fn grid_vs_main(in: GridVertexInput) -> GridVertexOutput {
 fn grid_fs_main(in: GridVertexOutput) -> @location(0) vec4<f32> {
     return vec4<f32>(in.color, 1.0);
 }
+
+struct FluidVertexInput {
+    @location(0) quad_pos: vec3<f32>,
+    @location(1) instance_pos: vec3<f32>,
+    @location(2) radius: f32,
+}
+
+struct FluidVertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) local_uv: vec2<f32>,
+}
+
+@vertex
+fn fluid_vs(in: FluidVertexInput) -> FluidVertexOutput {
+    var out: FluidVertexOutput;
+    let world_pos = in.instance_pos + in.quad_pos * in.radius;
+    out.clip_position = camera.view_proj * vec4<f32>(world_pos, 1.0);
+    out.local_uv = in.quad_pos.xy;
+    return out;
+}
+
+@fragment
+fn fluid_fs(in: FluidVertexOutput) -> @location(0) vec4<f32> {
+    let d = dot(in.local_uv, in.local_uv);
+    if d > 1.0 { discard; }
+    let alpha = 1.0 - d;
+    return vec4<f32>(0.2, 0.5, 0.9, alpha * 0.7);
+}

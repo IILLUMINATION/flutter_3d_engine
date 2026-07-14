@@ -1,7 +1,6 @@
 use rapier3d::prelude::*;
 use crate::core::math::{Vector3, Transform};
-use crate::core::water::WaterSim;
-use crate::core::water_mesh::WaterMesh;
+use crate::core::fluid::FluidSystem;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Camera {
@@ -82,10 +81,7 @@ pub struct Scene3D {
     player_body_handle:  RigidBodyHandle,
     ground_body_handle:  RigidBodyHandle,
 
-    pub water_sim:     WaterSim,
-    pub water_mesh:    WaterMesh,
-    pub water_time:    f32,
-    water_tick_timer:  f32,
+    pub fluid: FluidSystem,
 }
 
 impl Scene3D {
@@ -140,10 +136,7 @@ impl Scene3D {
             query_pipeline:         QueryPipeline::new(),
             player_body_handle,
             ground_body_handle,
-            water_sim:              WaterSim::new(),
-            water_mesh:             WaterMesh::new(),
-            water_time:             0.0,
-            water_tick_timer:       0.0,
+            fluid:                FluidSystem::new(),
         }
     }
 
@@ -276,7 +269,7 @@ impl Scene3D {
     }
 
     pub fn spawn_fluid_at(&mut self, x: f32, y: f32, z: f32) {
-        self.water_sim.spawn_block(glam::Vec3::new(x, y, z), 3);
+        self.fluid.spawn_block(glam::Vec3::new(x, y, z), 3, 3, 3);
     }
 
     pub fn spawn_cube_in_front(&mut self, r: f32, g: f32, b: f32) -> u64 {
@@ -407,13 +400,14 @@ impl Scene3D {
             &(),
         );
 
-        self.water_tick_timer += dt;
-        if self.water_tick_timer >= 0.05 {
-            self.water_tick_timer -= 0.05;
-            let solids = self.solids_hashset();
-            self.water_sim.tick(&solids);
-        }
-        self.water_time += dt;
+        let solids = self.solids_hashset();
+        let mut boundaries: Vec<(glam::Vec3, glam::Vec3)> = solids.iter().map(|c| {
+            let fx = c.x as f32; let fy = c.y as f32; let fz = c.z as f32;
+            (glam::Vec3::new(fx - 0.5, fy - 0.5, fz - 0.5), glam::Vec3::new(fx + 0.5, fy + 0.5, fz + 0.5))
+        }).collect();
+        boundaries.push((glam::Vec3::new(-1000.0, -2.0, -1000.0), glam::Vec3::new(1000.0, -0.9, 1000.0)));
+
+        self.fluid.step(dt.min(0.016), &boundaries);
 
         for node in &mut self.nodes {
             if let Some(handle) = node.rb_handle {
@@ -523,19 +517,17 @@ impl Scene3D {
             })
             .unwrap_or((0.0, 0.0));
 
-        let solids = self.solids_hashset();
-        self.water_mesh.rebuild(&self.water_sim, &solids, glam::Vec3::new(player_x, 0.0, player_z));
-
-        let water_ref: Option<&crate::core::water_mesh::WaterMesh> =
-            if self.water_sim.count() > 0 { Some(&self.water_mesh) } else { None };
+        let fluid_particles: Vec<(glam::Vec3, [f32; 3])> = self.fluid.particles.iter()
+            .map(|p| (p.position, [0.1, 0.5, 0.9]))
+            .collect();
 
         match &mut self.renderer {
             RendererVariant::Cpu(r) => {
-                r.render_frame(&view_proj, &eye, &model_matrices, &colors, &gizmo_lines, &gizmo_colors, rw, rh, player_x, player_z, water_ref, self.water_time)
+                r.render_frame(&view_proj, &eye, &model_matrices, &colors, &gizmo_lines, &gizmo_colors, rw, rh, player_x, player_z, &fluid_particles)
             }
             RendererVariant::Iron { renderer, iron } => {
                 let pixels =
-                    renderer.render_frame(&view_proj, &eye, &model_matrices, &colors, &gizmo_lines, &gizmo_colors, rw, rh, player_x, player_z, water_ref, self.water_time);
+                    renderer.render_frame(&view_proj, &eye, &model_matrices, &colors, &gizmo_lines, &gizmo_colors, rw, rh, player_x, player_z, &fluid_particles);
                 iron.provider().update_frame(&pixels);
                 iron.sendable().mark_frame_available();
                 vec![]

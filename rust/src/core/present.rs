@@ -11,38 +11,6 @@ pub trait FrameSink: Send + Sync {
         queue: &wgpu::Queue,
         frame: &wgpu::Texture,
     ) -> Vec<u8>;
-
-    fn present_from_dual(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        opaque: &wgpu::Texture,
-        composite: &wgpu::Texture,
-    ) -> Vec<u8> {
-        let mut encoder = device.create_command_encoder(&Default::default());
-        encoder.copy_texture_to_texture(
-            wgpu::TexelCopyTextureInfo {
-                texture: opaque,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            wgpu::TexelCopyTextureInfo {
-                texture: composite,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-                aspect: wgpu::TextureAspect::All,
-            },
-            wgpu::Extent3d {
-                width: composite.width(),
-                height: composite.height(),
-                depth_or_array_layers: 1,
-            },
-        );
-        queue.submit(Some(encoder.finish()));
-
-        self.present(device, queue, composite)
-    }
 }
 
 #[derive(Debug)]
