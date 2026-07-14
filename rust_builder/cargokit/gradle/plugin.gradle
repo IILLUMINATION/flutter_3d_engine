@@ -3,6 +3,8 @@
 
 import java.nio.file.Paths
 import org.apache.tools.ant.taskdefs.condition.Os
+import org.gradle.api.tasks.ExecOperations
+import javax.inject.Inject
 
 CargoKitPlugin.file = buildscript.sourceFile
 
@@ -31,16 +33,23 @@ abstract class CargoKitBuildTask extends DefaultTask {
     String sdkDirectory
 
     @Input
-    int compileSdkVersion;
+    int compileSdkVersion
 
     @Input
-    int minSdkVersion;
+    int minSdkVersion
 
     @Input
     String pluginFile
 
     @Input
     List<String> targetPlatforms
+
+    private final ExecOperations execOperations
+
+    @Inject
+    CargoKitBuildTask(ExecOperations execOperations) {
+        this.execOperations = execOperations
+    }
 
     @TaskAction
     def build() {
@@ -53,38 +62,35 @@ abstract class CargoKitBuildTask extends DefaultTask {
         }
 
         def executableName = Os.isFamily(Os.FAMILY_WINDOWS) ? "run_build_tool.cmd" : "run_build_tool.sh"
-        def path = Paths.get(new File(pluginFile).parent, "..", executableName);
+        def path = Paths.get(new File(pluginFile).parent, "..", executableName).toAbsolutePath().toString()
 
         def manifestDir = Paths.get(project.buildscript.sourceFile.parent, project.cargokit.manifestDir)
+            .toAbsolutePath().toString()
 
-        def rootProjectDir = project.rootProject.projectDir
+        def rootProjectDir = project.rootProject.projectDir.absolutePath
 
         if (!Os.isFamily(Os.FAMILY_WINDOWS)) {
-            new ProcessBuilder('chmod', '+x', path.toString()).inheritIO().start().waitFor()
+            execOperations.exec {
+                commandLine 'chmod', '+x', path
+            }
         }
 
-        def cmd = [path.toString(), "build-gradle"]
-        def env = [
-            "CARGOKIT_ROOT_PROJECT_DIR": rootProjectDir,
-            "CARGOKIT_TOOL_TEMP_DIR": "${buildDir}/build_tool",
-            "CARGOKIT_MANIFEST_DIR": manifestDir,
-            "CARGOKIT_CONFIGURATION": buildMode,
-            "CARGOKIT_TARGET_TEMP_DIR": buildDir,
-            "CARGOKIT_OUTPUT_DIR": outputDir,
-            "CARGOKIT_NDK_VERSION": ndkVersion,
-            "CARGOKIT_SDK_DIR": sdkDirectory,
-            "CARGOKIT_COMPILE_SDK_VERSION": compileSdkVersion,
-            "CARGOKIT_MIN_SDK_VERSION": minSdkVersion,
-            "CARGOKIT_TARGET_PLATFORMS": targetPlatforms.join(","),
-            "CARGOKIT_JAVA_HOME": System.properties['java.home'],
-        ]
-        def pb = new ProcessBuilder(cmd)
-        pb.environment().putAll(env)
-        pb.inheritIO()
-        def proc = pb.start()
-        def exitCode = proc.waitFor()
-        if (exitCode != 0) {
-            throw new GradleException("build-gradle failed with exit code ${exitCode}")
+        execOperations.exec {
+            executable path
+            args "build-gradle"
+
+            environment "CARGOKIT_ROOT_PROJECT_DIR", rootProjectDir
+            environment "CARGOKIT_TOOL_TEMP_DIR", "${buildDir}/build_tool"
+            environment "CARGOKIT_MANIFEST_DIR", manifestDir
+            environment "CARGOKIT_CONFIGURATION", buildMode
+            environment "CARGOKIT_TARGET_TEMP_DIR", buildDir
+            environment "CARGOKIT_OUTPUT_DIR", outputDir
+            environment "CARGOKIT_NDK_VERSION", ndkVersion
+            environment "CARGOKIT_SDK_DIR", sdkDirectory
+            environment "CARGOKIT_COMPILE_SDK_VERSION", compileSdkVersion
+            environment "CARGOKIT_MIN_SDK_VERSION", minSdkVersion
+            environment "CARGOKIT_TARGET_PLATFORMS", targetPlatforms.join(",")
+            environment "CARGOKIT_JAVA_HOME", System.properties['java.home']
         }
     }
 }
